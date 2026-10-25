@@ -13,6 +13,8 @@ import typer
 import yaml
 
 from . import paths
+from .limits import check_transition
+from .match import SearchConfig
 from .models import Event, Job, JobsFile, Salary, Status, now
 from .store import Store, upsert
 
@@ -116,6 +118,10 @@ def update(
         job = jf.get(job_id)
         if email_id and email_id in jf.seen_email_ids():
             return dump(job) | {"skipped": "email already processed"}
+        target = status or next((Status(_coerce(v)) for k, _, v in (kv.partition("=") for kv in set_ or [])
+                                 if k.strip() == "status"), None)
+        if target and (blocked := check_transition(jf, job, target, SearchConfig.load().limits)):
+            raise SystemExit(f"Blocked by per-company cap — {blocked}. Raise it in search.toml [limits] if needed.")
         if set_:
             data = dump(job)
             for kv in set_:
@@ -133,6 +139,40 @@ def update(
         return dump(job)
 
     out(Store().mutate(apply, f"update {job_id}" + (f" -> {status.value}" if status else "")))
+
+
+@app.command()
+def limits(
+    company: Annotated[Optional[str], typer.Argument(help="Only this company.")] = None,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+    top: Annotated[int, typer.Option(help="Best open jobs to list per company.")] = 3,
+):
+    """Per-company application caps: slots used, next free slot, best openings to spend them on."""
+    from .limits import company_key, usage
+    store = Store()
+    store.pull()
+    jf = store.load()
+    cfg = SearchConfig.load().limits
+    names: dict[str, str] = {}
+    for j in jf.jobs:
+        names.setdefault(company_key(j.company), j.company)
+    if company:
+        names = {company_key(company): company}
+    rows = [usage(jf, name, cfg) for name in names.values()]
+    rows = [u for u in rows if u.used or u.open]
+    rows.sort(key=lambda u: (-u.used, -len(u.open), u.company.lower()))
+    if as_json:
+        return out([{"company": u.company, "used": u.used, "max": u.max, "days": u.days, "full": u.full,
+                     "next_free": u.next_free, "free_slots": max(0, u.max - u.used),
+                     "best_open": [{"id": j.id, "role": j.role, "status": j.status.value, "match_score": j.match_score}
+                                   for j in u.open[:top]]} for u in rows])
+    for u in rows:
+        flag = "FULL" if u.full else f"{u.max - u.used} free"
+        nxt = f"  next slot {u.next_free}" if u.full and u.next_free else ""
+        typer.echo(f"{u.company[:28]:<28} {u.used}/{u.max} per {u.days}d  {flag}{nxt}  ({len(u.open)} open)")
+        for j in u.open[:top]:
+            score = f"{j.match_score:>5.1f}" if j.match_score is not None else "    -"
+            typer.echo(f"    {j.id}  {score}  {j.status.value:<9} {j.role[:70]}")
 
 
 @app.command("list")
@@ -175,7 +215,6 @@ def fetch(
 ):
     """Pull the GitHub trackers and company boards from search.toml; add matches as potential."""
     from .fetch import collect, merge
-    from .match import SearchConfig
 
     report = collect(SearchConfig.load(), only)
     for e in report.errors:

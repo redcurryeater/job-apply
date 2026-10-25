@@ -162,3 +162,74 @@ def test_creds_round_trip(tmp_path, monkeypatch):
     with pytest.raises(SystemExit):
         creds.new(host, "me@example.com")
     assert "password" not in (tmp_path / "accounts.json").read_text()
+
+
+# --- per-company caps -------------------------------------------------------------
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+from jobapply.limits import cap_for, check_transition, company_key, usage  # noqa: E402
+
+TODAY = date(2026, 10, 24)
+
+
+def _job(company, n, status=Status.potential, applied_days_ago=None, score=None):
+    j = Job(company=company, role=f"Role {n}", url=f"https://x.com/{company}/{n}", status=status, match_score=score)
+    if applied_days_ago is not None:
+        j.applied_at = datetime(2026, 10, 24, tzinfo=timezone.utc) - timedelta(days=applied_days_ago)
+    return j
+
+
+def test_company_key_and_caps():
+    assert company_key("Google LLC") == company_key("google") == "google"
+    assert company_key("Acme, Inc.") == "acme" and company_key("Co") == "co"
+    assert cap_for("Google LLC", {}) == (3, 30)
+    assert cap_for("Acme", {"per_company": 2, "window_days": 60}) == (2, 60)
+    # User overrides merge with the built-in Google rule instead of replacing it.
+    lim = {"companies": {"Meta": 5, "acme": {"max": 1, "days": 90}}}
+    assert cap_for("Meta Platforms Inc", lim) == (3, 30)  # different key: "meta platforms"
+    assert cap_for("meta", lim) == (5, 30) and cap_for("Acme", lim) == (1, 90) and cap_for("Google", lim) == (3, 30)
+
+
+def test_usage_counts_reserved_and_in_window_once():
+    jf = JobsFile(jobs=[
+        _job("Google", 1, Status.queued),
+        _job("Google LLC", 2, Status.rejected, applied_days_ago=10),
+        _job("google", 3, Status.applied, applied_days_ago=40),   # outside window
+        _job("Google", 4, Status.applying, applied_days_ago=5),    # counted once
+        _job("Google", 5, Status.potential, score=90),
+    ])
+    u = usage(jf, "Google", {}, TODAY)
+    assert (u.used, u.max, u.full) == (3, 3, True)
+    assert u.next_free == date(2026, 10, 14) + timedelta(days=30)
+    assert [j.role for j in u.open] == ["Role 5", "Role 1"]
+    assert "next slot 2026-11-13" in u.message()
+
+
+def test_check_transition_blocks_only_new_reservations():
+    jf = JobsFile(jobs=[_job("Acme", i, Status.queued) for i in range(3)] + [_job("Acme", 9)])
+    new = jf.jobs[-1]
+    assert "3/3" in check_transition(jf, new, Status.queued, {}, TODAY)
+    assert "unqueue one" in check_transition(jf, new, Status.applying, {}, TODAY)
+    assert check_transition(jf, jf.jobs[0], Status.applying, {}, TODAY) is None   # already holds a slot
+    assert check_transition(jf, new, Status.applied, {}, TODAY) is None            # recording a fact
+
+
+def test_cli_refuses_queue_at_cap(tmp_path):
+    import os
+    import shutil
+    data = tmp_path / "data"
+    data.mkdir()
+    shutil.copy(Path(__file__).parents[1] / "templates" / "search.example.toml", data / "search.toml")
+    jf = JobsFile(jobs=[_job("Google", i, Status.queued) for i in range(3)] + [_job("Google", 9)])
+    Store(data).save(jf)
+    env = {**os.environ, "JOBAPPLY_HOME": str(tmp_path)}
+    run = lambda *a: subprocess.run(["uv", "run", "jobs", *a], capture_output=True, text=True, env=env,
+                                     cwd=Path(__file__).parents[1])
+    r = run("update", jf.jobs[-1].id, "--status", "queued")
+    assert r.returncode != 0 and "per-company cap" in r.stderr and "3/3" in r.stderr
+    r = run("update", jf.jobs[-1].id, "--set", "status=queued")
+    assert r.returncode != 0
+    assert Store(data).load().jobs[-1].status == Status.potential
+    assert run("update", jf.jobs[0].id, "--status", "applying").returncode == 0
+    r = run("limits", "--json")
+    assert '"full": true' in r.stdout

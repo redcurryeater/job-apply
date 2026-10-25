@@ -50,6 +50,14 @@ For Gmail you need `gmail_client.json` from the project owner, and the owner has
 
 The CLI also works on its own: `uv run jobs --help`, for example `jobs fetch --dry-run`, `jobs list --status queued`, `jobs show <id>`, `jobs creds get <portal>`.
 
+### Per-company caps
+
+Recruiters see every application you send to their company, and some companies cap them. Google allows [3 applications per rolling 30 days](https://support.google.com/careers/answer/3437097).
+- **Default:** every company gets 3 applications per 30 days. Change this in `[limits]` in `search.toml`, or add per-company overrides under `[limits.companies]`.
+- **What uses a slot:** a job that is queued or being applied to, or one you applied to inside the window, even if it was later rejected.
+- **At the cap:** the dashboard and the CLI refuse to queue more jobs at that company. The dashboard shows `2/3 used · 6 open` under each company name. `uv run jobs limits` lists the best not-yet-applied openings at each company, so you can spend your slots well.
+- **What counts as one company:** company names are matched after dropping suffixes like "Inc" or "LLC", so "Google LLC" and "Google" are the same company. Subsidiaries such as YouTube or DeepMind count separately.
+
 ## Safety rules
 
 These rules are written into [CLAUDE.md](CLAUDE.md) and the `/apply` skill:

@@ -14,6 +14,8 @@ const state = {
   repo: null, token: null,
   data: null, sha: null,          // jobs.json + its blob sha (for optimistic writes)
   searchSha: null,
+  settings: { locations: [], limits: {} },  // parsed from search.toml
+  usage: new Map(),                          // companyKey -> companyUsage, rebuilt each render
   view: { status: "active", q: "", source: "", sort: "match_score", dir: -1 },
   editing: null,                  // job id open in the dialog, or "" for a new job
 };
@@ -162,6 +164,214 @@ function setStatus(job, status, summary = "") {
   job.updated_at = t;
 }
 
+// ——— search.toml: location preferences + per-company caps ———
+// Minimal TOML reader covering what search.toml uses: [section], [a.b], [[array.tables]],
+// strings, numbers, booleans, (multi-line) arrays, inline tables, # comments.
+function stripComment(line) {
+  let q = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === "\\" && q === '"') i++; else if (c === q) q = null; }
+    else if (c === '"' || c === "'") q = c;
+    else if (c === "#") return line.slice(0, i);
+  }
+  return line;
+}
+
+function openBrackets(s) {
+  let depth = 0, q = null;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (q) { if (c === "\\" && q === '"') i++; else if (c === q) q = null; }
+    else if (c === '"' || c === "'") q = c;
+    else if (c === "[" || c === "{") depth++;
+    else if (c === "]" || c === "}") depth--;
+  }
+  return depth;
+}
+
+function parseTomlValue(s) {
+  let i = 0;
+  const skip = () => { while (i < s.length && /\s/.test(s[i])) i++; };
+  const sep = (close) => { skip(); if (s[i] === ",") i++; skip(); return s[i] !== close && i < s.length; };
+  function value() {
+    skip();
+    const c = s[i];
+    if (c === '"' || c === "'") {
+      let out = "";
+      for (i++; i < s.length && s[i] !== c; i++) {
+        if (c === '"' && s[i] === "\\") { i++; out += { n: "\n", t: "\t" }[s[i]] ?? s[i]; } else out += s[i];
+      }
+      i++;
+      return out;
+    }
+    if (c === "[") {
+      const arr = [];
+      i++; skip();
+      if (s[i] !== "]") do arr.push(value()); while (sep("]"));
+      i++;
+      return arr;
+    }
+    if (c === "{") {
+      const obj = {};
+      i++; skip();
+      if (s[i] !== "}") do {
+        const m = /^\s*"?([\w.-]+)"?\s*=/.exec(s.slice(i));
+        if (!m) throw new Error("bad inline table");
+        i += m[0].length;
+        obj[m[1]] = value();
+      } while (sep("}"));
+      i++;
+      return obj;
+    }
+    const tok = /^[^,\]}\s]+/.exec(s.slice(i))[0];
+    i += tok.length;
+    if (tok === "true" || tok === "false") return tok === "true";
+    const n = Number(tok.replace(/_/g, ""));
+    return Number.isNaN(n) ? tok : n;
+  }
+  return value();
+}
+
+function parseToml(text) {
+  const root = {};
+  const table = (path) => path.reduce((t, k) => {
+    const next = (t[k] ||= {});
+    return Array.isArray(next) ? next[next.length - 1] : next;
+  }, root);
+  let cur = root;
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = stripComment(lines[i]).trim();
+    if (!line) continue;
+    let m;
+    if ((m = /^\[\[\s*([\w.-]+)\s*\]\]$/.exec(line))) {
+      const path = m[1].split(".");
+      const parent = table(path.slice(0, -1));
+      cur = {};
+      (parent[path[path.length - 1]] ||= []).push(cur);
+    } else if ((m = /^\[\s*([\w.-]+)\s*\]$/.exec(line))) {
+      cur = table(m[1].split("."));
+    } else if ((m = /^"?([\w.-]+)"?\s*=(.*)$/.exec(line))) {
+      let raw = m[2].trim();
+      while (openBrackets(raw) > 0 && i + 1 < lines.length) raw += " " + stripComment(lines[++i]).trim();
+      cur[m[1]] = parseTomlValue(raw);
+    }
+  }
+  return root;
+}
+
+function applySettings(text) {
+  try {
+    const t = parseToml(text || "");
+    state.settings = {
+      locations: (t.filters?.locations || []).map((s) => String(s).toLowerCase()),
+      limits: t.limits || {},
+    };
+  } catch {
+    state.settings = { locations: [], limits: {} };
+  }
+}
+
+// Location ranking: a location's rank is the index of the first preference it matches
+// (preferences are search.toml [filters] locations, most preferred first).
+const STATES = {
+  al: "alabama", ak: "alaska", az: "arizona", ar: "arkansas", ca: "california", co: "colorado",
+  ct: "connecticut", de: "delaware", fl: "florida", ga: "georgia", hi: "hawaii", id: "idaho",
+  il: "illinois", in: "indiana", ia: "iowa", ks: "kansas", ky: "kentucky", la: "louisiana",
+  me: "maine", md: "maryland", ma: "massachusetts", mi: "michigan", mn: "minnesota",
+  ms: "mississippi", mo: "missouri", mt: "montana", ne: "nebraska", nv: "nevada",
+  nh: "new hampshire", nj: "new jersey", nm: "new mexico", ny: "new york", nc: "north carolina",
+  nd: "north dakota", oh: "ohio", ok: "oklahoma", or: "oregon", pa: "pennsylvania",
+  ri: "rhode island", sc: "south carolina", sd: "south dakota", tn: "tennessee", tx: "texas",
+  ut: "utah", vt: "vermont", va: "virginia", wa: "washington", wv: "west virginia",
+  wi: "wisconsin", wy: "wyoming", dc: "district of columbia",
+};
+const STATE_CODES = Object.fromEntries(Object.entries(STATES).map(([code, name]) => [name, code]));
+const CITIES = { sf: "san francisco", nyc: "new york", la: "los angeles" };
+const CITY_CODES = Object.fromEntries(Object.entries(CITIES).map(([code, name]) => [name, code]));
+
+const reEscape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Same rule as match._contains: short terms must match whole words.
+function containsTerm(text, term) {
+  const t = term.trim().toLowerCase();
+  if (!t) return false;
+  return t.length <= 3 ? new RegExp(`\\b${reEscape(t)}\\b`, "i").test(text) : text.toLowerCase().includes(t);
+}
+
+function locationMatches(loc, pref) {
+  const p = pref.trim().toLowerCase();
+  if (containsTerm(loc, p)) return true;
+  if (STATES[p] && !CITIES[p] && containsTerm(loc, STATES[p])) return true;  // "ca" ~ "California" ("la" means LA)
+  if (CITIES[p] && containsTerm(loc, CITIES[p])) return true;           // "sf" ~ "San Francisco"
+  if (CITY_CODES[p] && containsTerm(loc, CITY_CODES[p])) return true;   // "new york" ~ "NYC"
+  // "california" ~ "Los Angeles, CA": a state code only counts after a comma, so "OR"/"IN" in prose don't.
+  return Boolean(STATE_CODES[p]) && new RegExp(`,\\s*${STATE_CODES[p]}\\b`, "i").test(loc);
+}
+
+function rankLocations(locs, prefs) {
+  const rank = (loc) => { const r = prefs.findIndex((p) => locationMatches(loc, p)); return r < 0 ? prefs.length : r; };
+  return locs.map((loc, i) => [rank(loc), i, loc]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
+}
+
+// Per-company caps — same rules as src/jobapply/limits.py. A job holds a slot while queued/applying,
+// or once its applied_at is inside the company's rolling window (whatever its status now).
+const RESERVED = new Set(["queued", "applying"]);
+const LEGAL_SUFFIXES = new Set(["inc", "llc", "ltd", "corp", "corporation", "co", "company", "plc", "gmbh"]);
+const DEFAULT_COMPANY_CAPS = { google: { max: 3, days: 30 } };  // https://support.google.com/careers/answer/3437097
+
+function companyKey(name) {
+  const words = (name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  while (words.length > 1 && LEGAL_SUFFIXES.has(words[words.length - 1])) words.pop();
+  return words.join(" ");
+}
+
+function capFor(company, limits) {
+  const per = Number(limits.per_company ?? 3), days = Number(limits.window_days ?? 30);
+  const key = companyKey(company);
+  const hits = Object.entries({ ...DEFAULT_COMPANY_CAPS, ...(limits.companies || {}) })
+    .filter(([name]) => companyKey(name) === key);
+  const o = hits.length ? hits[hits.length - 1][1] : null;
+  if (o && typeof o === "object") return [Number(o.max ?? per), Number(o.days ?? days)];
+  return o != null ? [Number(o), days] : [per, days];
+}
+
+function companyUsage(jobs, company, limits, today = new Date()) {
+  const key = companyKey(company);
+  const [max, days] = capFor(company, limits);
+  // Calendar-day math (setDate), not ms: windows can span a DST change.
+  const addDays = (d, n) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() + n); return x; };
+  const start = addDays(today, -days).getTime();
+  const inWindow = [];
+  let reserved = 0, open = 0;
+  for (const j of jobs) {
+    if (companyKey(j.company) !== key) continue;
+    const applied = parseDate(j.applied_at);
+    if (applied && applied.getTime() > start) inWindow.push(applied);
+    else if (RESERVED.has(j.status)) reserved++;
+    if (j.status === "potential" || j.status === "queued") open++;
+  }
+  inWindow.sort((a, b) => a - b);
+  const used = reserved + inWindow.length;
+  const nextFree = inWindow.length ? addDays(inWindow[0], days) : null;
+  return { company, used, max, days, open, nextFree, full: used >= max };
+}
+
+function capMessage(u) {
+  const msg = `${u.company}: ${u.used}/${u.max} applications used in ${u.days} days`;
+  if (!u.full) return msg;
+  return msg + (u.nextFree ? ` · next slot ${u.nextFree.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+                            : " · unqueue one to free a slot");
+}
+
+// Reason a status change is blocked, or null. Only moves *into* a reserved slot are capped.
+function capBlock(jobs, job, to) {
+  if (!RESERVED.has(to) || RESERVED.has(job.status)) return null;
+  const u = companyUsage(jobs, job.company, state.settings.limits);
+  return u.full ? `${capMessage(u)}. Raise the cap in Search settings if needed.` : null;
+}
+
 const safeHref = (url) => (/^https?:\/\//i.test(url || "") ? url : null);
 
 function parseDate(s) {
@@ -251,26 +461,78 @@ function statusSelect(job) {
     onclick: (e) => e.stopPropagation(),
     onchange: (e) => {
       const to = e.target.value;
-      mutate((d) => setStatus(d.jobs.find((x) => x.id === job.id), to), `${job.company}: ${to}`)
-        .then((ok) => ok && toast(`${job.company} → ${to}`));
+      const blocked = capBlock(state.data.jobs, job, to);
+      if (blocked) { e.target.value = job.status; toast(blocked, true); return; }
+      changeStatus(job, to).then((ok) => ok && toast(`${job.company} → ${to}`));
     },
   }, STATUSES.map((s) => h("option", { value: s, selected: s === job.status, text: s })));
+}
+
+// Re-checks the cap against the freshest data inside mutate, in case the CLI queued something meanwhile.
+async function changeStatus(job, to) {
+  let blocked = null;
+  const ok = await mutate((d) => {
+    const fresh = d.jobs.find((x) => x.id === job.id);
+    if (!fresh || (blocked = capBlock(d.jobs, fresh, to))) return false;
+    setStatus(fresh, to);
+  }, `${job.company}: ${to}`);
+  if (!ok) { render(); if (blocked) toast(blocked, true); }
+  return ok;
 }
 
 function queueButton(job) {
   const queued = job.status === "queued";
   if (!queued && job.status !== "potential") return null;
+  const blocked = queued ? null : capBlock(state.data.jobs, job, "queued");
   return h("button", {
-    class: `btn sm${queued ? "" : " red"}`,
-    title: queued ? "Remove from the apply queue" : "Queue for /apply",
+    class: `btn sm${queued ? "" : blocked ? " blocked" : " red"}`,
+    title: queued ? "Remove from the apply queue" : blocked || "Queue for /apply",
+    "aria-disabled": blocked ? "true" : null,
     text: queued ? "Unqueue" : "Queue",
     onclick: (e) => {
       e.stopPropagation();
-      const to = queued ? "potential" : "queued";
-      mutate((d) => setStatus(d.jobs.find((x) => x.id === job.id), to), `${job.company}: ${to}`)
+      if (blocked) { toast(blocked, true); return; }
+      changeStatus(job, queued ? "potential" : "queued")
         .then((ok) => ok && toast(queued ? "Removed from queue" : `Queued — run /apply in Claude Code`));
     },
   });
+}
+
+function usageFor(company) {
+  const key = companyKey(company);
+  if (!state.usage.has(key)) state.usage.set(key, companyUsage(state.data.jobs, company, state.settings.limits));
+  return state.usage.get(key);
+}
+
+function companyCell(job) {
+  const u = usageFor(job.company);
+  const line = u.used > 0 || u.open > 1
+    ? h("button", {
+        class: `capline${u.full ? " full" : ""}`,
+        title: `${capMessage(u)} — click to show every job at ${job.company}`,
+        text: `${u.used}/${u.max} used · ${u.open} open`,
+        onclick: (e) => {
+          e.stopPropagation();
+          state.view.q = job.company;
+          $("#q").value = job.company;
+          saveView();
+          renderRows();
+        },
+      })
+    : null;
+  return h("td", { class: "company" }, h("span", { class: "cname", title: job.company, text: job.company }), line);
+}
+
+function locationCell(job) {
+  const locs = rankLocations(job.location || [], state.settings.locations);
+  if (!locs.length) return h("td", { class: "loc", text: job.remote ? "Remote" : "" });
+  if (locs.length <= 3) return h("td", { class: "loc", text: locs.join(" · ") });
+  const rest = locs.slice(3);
+  return h("td", { class: "loc" },
+    h("span", { text: locs.slice(0, 3).join(" · ") }),
+    h("details", { class: "more", onclick: (e) => e.stopPropagation() },
+      h("summary", { title: "Show all locations", text: `… +${rest.length} more` }),
+      h("ul", { class: "morelist" }, rest.map((loc) => h("li", { text: loc })))));
 }
 
 function dateCell(s, isClose) {
@@ -293,9 +555,9 @@ function renderRows() {
     const href = safeHref(j.url);
     return h("tr", { class: DEAD.has(j.status) ? "dead" : "", onclick: () => openDetail(j.id) },
       h("td", { class: "num", text: j.match_score != null ? Math.round(j.match_score) : "—" }),
-      h("td", { class: "company", title: j.company, text: j.company }),
+      companyCell(j),
       h("td", { class: "role", text: j.role }),
-      h("td", { class: "loc", text: (j.location || []).join(" · ") || (j.remote ? "Remote" : "") }),
+      locationCell(j),
       dateCell(j.date_posted, false),
       dateCell(j.closes_at, true),
       h("td", { class: "num" }, fmtSalary(j.salary), j.salary?.basis === "estimated" ? h("span", { class: "est", text: "est." }) : null),
@@ -319,6 +581,7 @@ function renderSources() {
 
 function render() {
   if (!state.data) return;
+  state.usage = new Map();
   $("#sheetno").textContent = `${state.repo} · ${state.data.jobs.length} jobs`;
   renderCounts();
   renderSources();
@@ -375,6 +638,9 @@ async function saveDetail(e) {
       ? { min: num(v.salary_min) ?? num(v.salary_max), max: num(v.salary_max) ?? num(v.salary_min), currency: "USD", period: "year", basis: v.salary_basis }
       : null,
   };
+  const before = state.editing ? state.data.jobs.find((j) => j.id === state.editing) : { status: "potential" };
+  const blocked = capBlock(state.data.jobs, { ...before, company: fields.company }, v.status);
+  if (blocked) { toast(blocked, true); return; }
   const btn = $("#dsave");
   btn.disabled = true;
   try {
@@ -382,7 +648,7 @@ async function saveDetail(e) {
       const id = state.editing;
       await mutate((d) => {
         const job = d.jobs.find((j) => j.id === id);
-        if (!job) return false;
+        if (!job || capBlock(d.jobs, { ...job, company: fields.company }, v.status)) return false;
         // Keep any salary sub-fields (e.g. period) the form doesn't show.
         if (fields.salary && job.salary) fields.salary = { ...job.salary, ...fields.salary, period: job.salary.period || "year" };
         for (const [k, val] of Object.entries(fields)) { if (val == null || val === "") delete job[k]; else job[k] = val; }
@@ -421,8 +687,10 @@ async function loadSearch() {
     const f = await readFile("search.toml");
     $("#searchtoml").value = f.text;
     state.searchSha = f.sha;
+    applySettings(f.text);
     $("#searchmsg").textContent = "";
   } catch (e) {
+    applySettings("");
     $("#searchmsg").textContent = e.status === 404 ? "No search.toml yet — saving creates it." : `Couldn't load: ${e.message}`;
   }
 }
@@ -432,6 +700,8 @@ async function saveSearch() {
   btn.disabled = true;
   try {
     state.searchSha = await writeFile("search.toml", $("#searchtoml").value, state.searchSha, "update search settings");
+    applySettings($("#searchtoml").value);
+    render();
     $("#searchmsg").textContent = "Saved. Next fetch uses it.";
   } catch (e) {
     $("#searchmsg").textContent = e.status === 409 ? "Changed elsewhere — reload the tab first." : `Save failed: ${e.message}`;
@@ -495,6 +765,7 @@ async function unlockWith(repo, token) {
   try {
     await checkRepo();
     await loadJobs();
+    await loadSearch();  // location preferences + caps; never fatal
   } catch (e) {
     state.data = null;
     state.token = null;
@@ -517,7 +788,7 @@ async function unlockWith(repo, token) {
 async function reload() {
   const btn = $("#reload");
   btn.disabled = true;
-  try { await checkRepo(); await loadJobs(); render(); toast("Up to date"); }
+  try { await checkRepo(); await loadJobs(); await loadSearch(); render(); toast("Up to date"); }
   catch (e) {
     if (e instanceof NotPrivate) lock(e.message);
     else toast(`Reload failed: ${e.message}`, true);

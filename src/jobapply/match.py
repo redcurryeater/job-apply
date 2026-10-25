@@ -14,6 +14,7 @@ from .models import Job
 class SearchConfig:
     title_include: list[str] = field(default_factory=list)
     title_exclude: list[str] = field(default_factory=list)
+    company_exclude: list[str] = field(default_factory=list)
     locations: list[str] = field(default_factory=list)
     max_age_days: int = 21
     needs_sponsorship: bool = False
@@ -23,6 +24,7 @@ class SearchConfig:
     simplify_categories: list[str] = field(default_factory=list)
     ats: dict[str, list[str]] = field(default_factory=dict)
     linkedin: list[dict] = field(default_factory=list)
+    limits: dict = field(default_factory=dict)  # raw [limits] section, see limits.py
 
     @classmethod
     def load(cls, path: Path = paths.SEARCH_FILE) -> "SearchConfig":
@@ -33,6 +35,7 @@ class SearchConfig:
         return cls(
             title_include=[t.lower() for t in f.get("title_include", [])],
             title_exclude=[t.lower() for t in f.get("title_exclude", [])],
+            company_exclude=[t.lower() for t in f.get("company_exclude", [])],
             locations=[t.lower() for t in f.get("locations", [])],
             max_age_days=f.get("max_age_days", 21),
             needs_sponsorship=f.get("needs_sponsorship", False),
@@ -42,6 +45,7 @@ class SearchConfig:
             simplify_categories=s.get("categories", []),
             ats=raw.get("ats", {}),
             linkedin=raw.get("linkedin", {}).get("searches", []),
+            limits=raw.get("limits", {}),
         )
 
 
@@ -62,6 +66,9 @@ def passes_filters(job: Job, cfg: SearchConfig, today: date | None = None) -> st
         return "title not included"
     if bad := next((t for t in cfg.title_exclude if _contains(title, t)), None):
         return f"title excluded ({bad.strip()})"
+    company = f" {job.company.lower()} "
+    if bad := next((c for c in cfg.company_exclude if _contains(company, c)), None):
+        return f"company excluded ({bad.strip()})"
     if cfg.locations and job.location:
         # Match on the location text only: "remote" jobs are often remote within another country.
         locs = " | ".join(job.location).lower()

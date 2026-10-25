@@ -6,7 +6,10 @@
 title_include = ["software", "engineer", "developer", "machine learning", "ml ", "data scientist", "research"]
 # Titles containing any of these are skipped.
 title_exclude = ["senior", "sr.", "sr ", "staff", "principal", "lead", "manager", "director", "head of", "phd"]
+# Listings from companies whose name contains one of these are skipped.
+company_exclude = []
 # Keep jobs whose location contains one of these. Empty list = anywhere.
+# Order = preference: the dashboard lists a job's best-matching 3 locations first.
 locations = ["remote", "united states", "usa", "us", "ca", "san francisco", "sf", "los angeles", "new york", "nyc", "seattle"]
 # Skip listings older than this many days.
 max_age_days = 21
@@ -32,6 +35,18 @@ categories = ["Software", "AI/ML/Data"]
 greenhouse = ["anthropic", "figma", "stripe"]
 lever = ["palantir:Palantir"]
 ashby = ["openai:OpenAI", "ramp:Ramp", "notion:Notion"]
+
+[limits]
+# Max applications per company in a rolling window (queued/applying jobs reserve a slot).
+# Recruiters see every application you send; spend slots on your best-matching roles.
+# At the cap, the dashboard and CLI refuse to queue more until a slot frees.
+per_company = 3
+window_days = 30
+
+[limits.companies]
+# Overrides: name = max, or name = { max = N, days = D }.
+# Google's official rule: https://support.google.com/careers/answer/3437097
+google = { max = 3, days = 30 }
 
 [[linkedin.searches]]
 keywords = "software engineer new grad"
