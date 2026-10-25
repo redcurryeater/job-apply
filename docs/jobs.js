@@ -459,23 +459,47 @@ function showLock(message = "") {
   (f.repo.value ? f.token : f.repo).focus();
 }
 
-function lock() {
+function lock(message = "Locked. The token was removed from this browser.") {
   store.del(LS.token);
   state.token = null;
   state.data = null;
   $("#rows").replaceChildren();
   $("#searchtoml").value = "";
-  showLock("Locked. The token was removed from this browser.");
+  showLock(message);
+}
+
+// Only fine-grained tokens can be limited to one repo. Classic (ghp_) and gh-CLI/OAuth (gho_)
+// tokens reach every repo the user owns — including this dashboard's code.
+const FINE_GRAINED = /^github_pat_\w+$/;
+const TOKEN_HELP = "Use a fine-grained token (starts with github_pat_) limited to only your job-data repo. "
+  + "Classic and gh-CLI tokens can reach all your repos.";
+
+class NotPrivate extends Error {}
+
+async function checkRepo() {
+  const repo = await gh(`/repos/${state.repo}`);
+  if (repo.private !== true) {
+    throw new NotPrivate(`${state.repo} is public — make it private on GitHub before using the dashboard.`);
+  }
 }
 
 async function unlockWith(repo, token) {
+  if (!FINE_GRAINED.test(token)) {
+    store.del(LS.token);
+    state.token = null;
+    showLock(TOKEN_HELP);
+    return;
+  }
   state.repo = repo;
   state.token = token;
   try {
+    await checkRepo();
     await loadJobs();
   } catch (e) {
     state.data = null;
-    const why = e.status === 401 ? "That token was rejected (expired or mistyped)."
+    state.token = null;
+    const why = e instanceof NotPrivate ? e.message
+      : e.status === 401 ? "That token was rejected (expired or mistyped)."
       : e.status === 404 ? `Can't see ${repo}/jobs.json with this token. Check the repo name and that the token is limited to that repo with Contents access.`
       : e.status === 403 ? "GitHub refused the request (permissions or rate limit)."
       : `Couldn't load: ${e.message}`;
@@ -493,8 +517,11 @@ async function unlockWith(repo, token) {
 async function reload() {
   const btn = $("#reload");
   btn.disabled = true;
-  try { await loadJobs(); render(); toast("Up to date"); }
-  catch (e) { toast(`Reload failed: ${e.message}`, true); }
+  try { await checkRepo(); await loadJobs(); render(); toast("Up to date"); }
+  catch (e) {
+    if (e instanceof NotPrivate) lock(e.message);
+    else toast(`Reload failed: ${e.message}`, true);
+  }
   finally { btn.disabled = false; }
 }
 

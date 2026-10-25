@@ -76,6 +76,8 @@ The dashboard page holds no data. You unlock it with your data repo name and a [
 - **Repository access:** only `<you>/job-data`
 - **Repository permissions:** Contents set to Read and write
 
+The dashboard refuses classic (`ghp_`) and GitHub CLI (`gho_`) tokens, because those can reach every repo you own. It also refuses to open a data repo that isn't private. GitHub doesn't let a web page see which repos a fine-grained token covers, so choosing **only `job-data`** on the token form is up to you. Never pick "All repositories".
+
 The token is stored only in your browser's localStorage, and the **Lock** button clears it. The page's content security policy only lets it talk to `api.github.com`, and it loads no third-party scripts.
 
 If you'd rather not paste a token into a hosted page, run `uv run jobs dashboard` to serve the same page on localhost.

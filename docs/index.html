@@ -29,10 +29,13 @@
   <section id="lock" class="lock" hidden>
     <form id="unlock" class="panel" autocomplete="off">
       <h2>Unlock</h2>
-      <p class="dim">Your jobs live in your own private GitHub repo. Paste a fine-grained token that can
-        read &amp; write <b>only</b> that repo (Contents: read and write). It is kept in this browser only.</p>
+      <p class="dim">Your jobs live in your own private GitHub repo. Paste a <b>fine-grained</b> token
+        (starts with <code>github_pat_</code>) created with <b>Only select repositories → job-data</b> and
+        Contents: Read and write. Classic and <code>gh</code> CLI tokens are refused because they can reach all your repos.
+        It is kept in this browser only.</p>
       <label>Data repo <input name="repo" placeholder="your-username/job-data" required pattern="[\w.-]+/[\w.-]+" spellcheck="false"></label>
-      <label>Token <input name="token" type="password" placeholder="github_pat_…" required spellcheck="false"></label>
+      <label>Token <input name="token" type="password" placeholder="github_pat_…" required spellcheck="false"
+        pattern="github_pat_\w+" title="A fine-grained token starting with github_pat_"></label>
       <button type="submit" class="btn red">Open sheet</button>
       <p class="err" id="lockerr" role="alert"></p>
       <p class="dim small">Prefer not to paste a token into a hosted page? Run <code>uv run jobs dashboard</code>

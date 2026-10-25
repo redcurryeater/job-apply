@@ -36,7 +36,7 @@ Sanity-check the filters with `uv run jobs fetch --dry-run` (prints matches with
 3. If their school/work Google account blocks it, suggest a personal Gmail with a forwarding filter for recruiting mail.
 
 ## 5. Dashboard
-1. `uv run jobs init` printed a token link. Tell them to open it, choose **Only select repositories → job-data**, Repository permissions → **Contents: Read and write**, generate, and copy the token.
+1. `uv run jobs init` printed a token link. Tell them to open it, choose **Only select repositories → job-data**, Repository permissions → **Contents: Read and write**, generate, and copy the token. Stress that it must be limited to job-data, never "All repositories": the dashboard can't check that, and an all-repo token that leaked could be used to edit any of their repos. Classic and `gh auth token` tokens are refused by the dashboard.
 2. Open https://redcurryeater.github.io/job-apply/ and enter `<user>/job-data` + the token. (Alternative: `uv run jobs dashboard` for a localhost copy.)
 
 ## 6. Browser safety

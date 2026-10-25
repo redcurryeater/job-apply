@@ -23,7 +23,7 @@ def gh_login() -> str:
 def token_url(owner: str, repo: str) -> str:
     """Pre-filled fine-grained token form. The repository itself still has to be picked by hand."""
     q = {"name": f"jobapply dashboard ({repo})", "description": "Read/write jobs.json from the job-apply dashboard",
-         "target_name": owner, "expires_in": "90", "contents": "write"}
+         "target_name": owner, "expires_in": "60", "contents": "write"}
     return "https://github.com/settings/personal-access-tokens/new?" + urlencode(q)
 
 
@@ -76,5 +76,7 @@ def init(repo: str = "job-data") -> list[str]:
         log.append(f"created {paths.PROFILE_FILE} from the template (fill it in)")
 
     log.append(f"dashboard repo: {full}")
-    log.append(f"create a dashboard token (select only {full}, Contents: read & write): {token_url(owner, repo)}")
+    log.append(f"create a dashboard token: {token_url(owner, repo)}")
+    log.append(f"  -> Repository access: 'Only select repositories' -> {full} ONLY (never 'All repositories')")
+    log.append("  -> Permissions: Contents = Read and write. The dashboard refuses classic/gh tokens.")
     return log
