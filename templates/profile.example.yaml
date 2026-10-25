@@ -1,0 +1,64 @@
+# Your application profile. Stays on this computer (profile/ is gitignored, never pushed anywhere).
+# Claude fills application forms ONLY from this file; anything missing, it will ask you.
+# Answer honestly; Claude will never invent or embellish an answer.
+
+name:
+  first: ""
+  last: ""
+  preferred: ""
+  pronouns: ""            # optional; leave blank to skip
+email: ""                 # the address used for job-portal accounts
+phone: ""
+address:
+  street: ""
+  city: ""
+  state: ""
+  zip: ""
+  country: "United States"
+links:
+  linkedin: ""
+  github: ""
+  website: ""
+
+resume: resume.pdf        # file in profile/
+transcript: ""            # optional, file in profile/
+cover_letter_template: "" # optional, file in profile/; Claude tailors it per job if set
+
+education:
+  - school: ""
+    degree: ""            # e.g. "B.S." / "M.S."
+    major: ""
+    minor: ""
+    gpa: ""
+    start: ""             # YYYY-MM
+    end: ""               # YYYY-MM (expected)
+
+work_authorization:
+  authorized_us: true             # legally authorized to work in the US?
+  needs_sponsorship_now: false
+  needs_sponsorship_future: false
+  citizenship: ""                 # only if forms ask
+  security_clearance: ""          # "none" / level
+
+preferences:
+  start_date: ""                  # e.g. "2027-07" or "immediately"
+  relocate: true
+  remote_ok: true
+  desired_salary: ""              # what to enter if a form demands a number; blank = ask
+  notice_period: ""
+
+# Voluntary self-identification. "Decline to self-identify" is always acceptable.
+eeo:
+  gender: "Decline to self-identify"
+  race_ethnicity: "Decline to self-identify"
+  hispanic_latino: "Decline to self-identify"
+  veteran: "Decline to self-identify"
+  disability: "Decline to self-identify"
+
+# Reusable answers. Claude adds new ones here (with your approval) as you answer novel questions.
+answers:
+  how_did_you_hear: "Company careers page"
+  previously_employed_here: "No"
+  willing_to_background_check: "Yes"
+  over_18: "Yes"
+  why_interested: ""              # generic fallback; Claude tailors per company

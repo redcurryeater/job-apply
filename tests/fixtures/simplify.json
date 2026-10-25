@@ -1,0 +1,104 @@
+[
+ {
+  "source": "Simplify",
+  "category": "Software",
+  "company_name": "Merative",
+  "id": "c551daed-04ac-42cb-a745-9664938e00da",
+  "title": "Software Engineering Associate",
+  "active": true,
+  "date_updated": 1772205777,
+  "date_posted": 1772205777,
+  "url": "https://jobs.smartrecruiters.com/TruvenHealthAnalyticsanIBMCompany/93930814",
+  "locations": [
+   "Greenwood Village, CO"
+  ],
+  "company_url": "https://simplify.jobs/c/Merative",
+  "is_visible": true,
+  "sponsorship": "Other",
+  "degrees": [
+   "Bachelor's"
+  ]
+ },
+ {
+  "source": "Simplify",
+  "category": "Software",
+  "company_name": "Verse Medical",
+  "id": "99de05ac-50e2-401f-a62d-db4d99b5221e",
+  "title": "Software Engineer - Full Stack - Emerging Talent",
+  "active": true,
+  "date_updated": 1772752715,
+  "date_posted": 1772752715,
+  "url": "https://jobs.ashbyhq.com/versemedical/af511a89-f716-4e51-9ad1-bf4e68dbdcaa/application",
+  "locations": [
+   "SF",
+   "NYC"
+  ],
+  "company_url": "https://simplify.jobs/c/VerseMedical",
+  "is_visible": true,
+  "sponsorship": "Other",
+  "degrees": []
+ },
+ {
+  "source": "Simplify",
+  "category": "Software",
+  "company_name": "RTX",
+  "id": "e4839ecb-2777-4886-93d2-c56612b08784",
+  "title": "Software Engineer 2",
+  "active": true,
+  "date_updated": 1773310382,
+  "date_posted": 1773310382,
+  "url": "https://globalhr.wd5.myworkdayjobs.com/rec_rtx_ext_gateway/job/US-AZ-TUCSON-801--1151-E-Hermans-Rd--BLDG-801-External-Site/XMLNAME-2026-Fulltime-Raytheon-Software-Engineer-II---Test-Equipment---Onsite_01790413",
+  "locations": [
+   "Tucson, AZ"
+  ],
+  "company_url": "https://simplify.jobs/c/RTX",
+  "is_visible": true,
+  "sponsorship": "Other",
+  "degrees": [
+   "Master's"
+  ]
+ },
+ {
+  "source": "Simplify",
+  "category": "Software",
+  "company_name": "Ascot",
+  "id": "825cd056-7440-42a0-9c34-847cc21a1cf9",
+  "title": "Associate Full Stack AI Engineer",
+  "active": false,
+  "date_updated": 1772147773,
+  "date_posted": 1772147773,
+  "url": "https://fa-emkq-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/889",
+  "locations": [
+   "Stamford, CT",
+   "NYC",
+   "Iselin, Woodbridge Township, NJ"
+  ],
+  "company_url": "https://simplify.jobs/c/Ascot",
+  "is_visible": true,
+  "sponsorship": "Other",
+  "degrees": [
+   "Bachelor's"
+  ]
+ },
+ {
+  "source": "Simplify",
+  "category": "Hardware",
+  "company_name": "Micron Technology",
+  "id": "441c3d0c-ee76-4f06-85bc-5c015f9c7452",
+  "title": "New College Grad - Memory Design Engineer - Hbm",
+  "active": true,
+  "date_updated": 1772236519,
+  "date_posted": 1772236519,
+  "url": "https://micron.wd1.myworkdayjobs.com/External/job/Richardson-TX/New-College-Grad---Memory-Design-Engineer--HBM_JR93183-1",
+  "locations": [
+   "Richardson, TX"
+  ],
+  "company_url": "https://simplify.jobs/c/Micron-Technology",
+  "is_visible": true,
+  "sponsorship": "Other",
+  "degrees": [
+   "Bachelor's",
+   "Master's"
+  ]
+ }
+]

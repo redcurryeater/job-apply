@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run jobs:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv sync:*)",
+      "Bash(git -C data status:*)",
+      "Bash(git -C data log:*)",
+      "Bash(git -C data pull:*)",
+      "Read(./profile/**)",
+      "Read(./data/**)"
+    ],
+    "deny": [
+      "Read(./secrets/**)",
+      "Edit(./secrets/**)",
+      "Write(./secrets/**)"
+    ]
+  }
+}

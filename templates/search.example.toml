@@ -1,0 +1,42 @@
+# Job search settings. Lives in your private job-data repo; editable from the dashboard's Settings tab.
+# `uv run jobs fetch` uses everything except [linkedin], which /find-jobs runs in Chrome.
+
+[filters]
+# A title must contain at least one of these (case-insensitive) to be considered.
+title_include = ["software", "engineer", "developer", "machine learning", "ml ", "data scientist", "research"]
+# Titles containing any of these are skipped.
+title_exclude = ["senior", "sr.", "sr ", "staff", "principal", "lead", "manager", "director", "head of", "phd"]
+# Keep jobs whose location contains one of these. Empty list = anywhere.
+locations = ["remote", "united states", "usa", "us", "ca", "san francisco", "sf", "los angeles", "new york", "nyc", "seattle"]
+# Skip listings older than this many days.
+max_age_days = 21
+# true = skip listings that say they don't sponsor visas / require citizenship.
+needs_sponsorship = false
+# Minimum match score (0-100) for a job to be added as "potential".
+min_score = 25
+
+[keywords]
+# Scored against the title (x3) and description (x1). Put your strongest skills first.
+terms = ["python", "machine learning", "computer vision", "pytorch", "backend", "distributed systems"]
+
+[simplify]
+# GitHub job trackers maintained by Simplify (listings.json on the dev branch).
+repos = ["SimplifyJobs/New-Grad-Positions"]
+# Categories to keep; empty = all. Options: "Software", "AI/ML/Data", "Hardware", "Quant", "Product".
+categories = ["Software", "AI/ML/Data"]
+
+[ats]
+# Company board names from their careers URLs:
+#   boards.greenhouse.io/<name>, jobs.lever.co/<name>, jobs.ashbyhq.com/<name>
+# Optional display name after a colon (Lever/Ashby don't report one): "openai:OpenAI".
+greenhouse = ["anthropic", "figma", "stripe"]
+lever = ["palantir:Palantir"]
+ashby = ["openai:OpenAI", "ramp:Ramp", "notion:Notion"]
+
+[[linkedin.searches]]
+keywords = "software engineer new grad"
+location = "United States"
+
+[[linkedin.searches]]
+keywords = "machine learning engineer"
+location = "Los Angeles, California"

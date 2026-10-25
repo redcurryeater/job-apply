@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Per-user, personal: NEVER commit (this repo is public)
+data/
+profile/
+secrets/
+*.pdf
+.env
+.pytest_cache/

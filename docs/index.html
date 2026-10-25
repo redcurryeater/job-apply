@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- The token never leaves this page except to api.github.com; no third-party scripts may load. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://api.github.com; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Job Sheet</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%230e0d0b'/%3E%3Crect x='5' y='9' width='22' height='15' rx='2' fill='none' stroke='%23e3d7ae' stroke-width='2'/%3E%3Ccircle cx='25.5' cy='7' r='3.6' fill='%23e2382f'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="jobs.css">
+<script src="jobs.js" defer></script>
+</head>
+<body>
+<div class="sheet">
+  <header class="masthead">
+    <div class="row1">
+      <h1>Job Sheet</h1>
+      <span class="sheetno" id="sheetno">Locked</span>
+    </div>
+    <p class="course">Find · apply · track — data stays in your private repo</p>
+  </header>
+
+  <!-- Unlock: nothing is fetched until a repo + token are given. -->
+  <section id="lock" class="lock" hidden>
+    <form id="unlock" class="panel" autocomplete="off">
+      <h2>Unlock</h2>
+      <p class="dim">Your jobs live in your own private GitHub repo. Paste a fine-grained token that can
+        read &amp; write <b>only</b> that repo (Contents: read and write). It is kept in this browser only.</p>
+      <label>Data repo <input name="repo" placeholder="your-username/job-data" required pattern="[\w.-]+/[\w.-]+" spellcheck="false"></label>
+      <label>Token <input name="token" type="password" placeholder="github_pat_…" required spellcheck="false"></label>
+      <button type="submit" class="btn red">Open sheet</button>
+      <p class="err" id="lockerr" role="alert"></p>
+      <p class="dim small">Prefer not to paste a token into a hosted page? Run <code>uv run jobs dashboard</code>
+        in your clone to open this same page on localhost.</p>
+    </form>
+  </section>
+
+  <section id="app" hidden>
+    <nav class="tabs" aria-label="Views">
+      <button class="tab on" data-tab="jobs">Jobs</button>
+      <button class="tab" data-tab="settings">Search settings</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="reload" title="Reload from GitHub">Reload</button>
+      <button class="btn ghost" id="lockbtn" title="Forget repo and token in this browser">Lock</button>
+    </nav>
+
+    <div id="tab-jobs">
+      <div class="counts" id="counts" role="toolbar" aria-label="Filter by status"></div>
+      <div class="toolbar">
+        <input id="q" type="search" placeholder="Filter company, role, location…" aria-label="Filter">
+        <select id="source" aria-label="Source"><option value="">All sources</option></select>
+        <button class="btn" id="addbtn">+ Add job</button>
+      </div>
+      <div class="tablewrap">
+        <table id="table">
+          <thead><tr>
+            <th data-sort="match_score" class="num">Match</th>
+            <th data-sort="company">Company</th>
+            <th data-sort="role">Role</th>
+            <th data-sort="location">Location</th>
+            <th data-sort="date_posted">Posted</th>
+            <th data-sort="closes_at">Closes</th>
+            <th data-sort="salary" class="num">Salary</th>
+            <th data-sort="status">Status</th>
+            <th><span class="sr">Actions</span></th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <p class="empty dim" id="empty" hidden>No jobs here yet. Run <code>/find-jobs</code> in Claude Code, or add one.</p>
+      </div>
+    </div>
+
+    <div id="tab-settings" hidden>
+      <div class="panel">
+        <h2>search.toml</h2>
+        <p class="dim">Keywords, filters, GitHub trackers and company boards used by <code>uv run jobs fetch</code> and <code>/find-jobs</code>.</p>
+        <textarea id="searchtoml" spellcheck="false" rows="28" aria-label="search.toml"></textarea>
+        <div class="row"><button class="btn red" id="savesearch">Save</button><span class="dim small" id="searchmsg"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="toast" id="toast" role="status" hidden></p>
+
+  <footer class="foot dim small">
+    <a href="https://github.com/redcurryeater/job-apply">job-apply</a> · open source · your data never touches this site
+  </footer>
+</div>
+
+<dialog id="detail">
+  <form id="jobform" method="dialog" autocomplete="off">
+    <header class="dhead">
+      <h2 id="dtitle">Job</h2>
+      <button type="button" class="btn ghost" id="dclose" aria-label="Close">×</button>
+    </header>
+    <div class="grid">
+      <label>Company <input name="company" required></label>
+      <label>Role <input name="role" required></label>
+      <label class="wide">URL <input name="url" type="url" required></label>
+      <label class="wide">Location <input name="location" placeholder="comma separated"></label>
+      <label>Status <select name="status"></select></label>
+      <label>Level <input name="level" placeholder="new grad, intern…"></label>
+      <label>Posted <input name="date_posted" type="date"></label>
+      <label>Closes <input name="closes_at" type="date"></label>
+      <label>Salary min <input name="salary_min" type="number" min="0" step="1000"></label>
+      <label>Salary max <input name="salary_max" type="number" min="0" step="1000"></label>
+      <label>Salary basis <select name="salary_basis"><option value="listed">listed</option><option value="estimated">estimated</option></select></label>
+      <label>Match <input name="match_score" type="number" min="0" max="100" step="1"></label>
+      <label class="wide">Match notes <input name="match_notes"></label>
+      <label class="wide">Notes <textarea name="notes" rows="4"></textarea></label>
+    </div>
+    <div id="dmeta" class="dim small"></div>
+    <h3 id="evhead">Timeline</h3>
+    <ol id="events" class="events"></ol>
+    <footer class="row">
+      <button type="submit" class="btn red" id="dsave">Save</button>
+      <button type="button" class="btn ghost danger" id="ddelete">Delete</button>
+    </footer>
+  </form>
+</dialog>
+</body>
+</html>

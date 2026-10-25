@@ -1,0 +1,28 @@
+[project]
+name = "jobapply"
+version = "0.1.0"
+description = "Find jobs, apply with Claude in Chrome, and track it all in a private dashboard"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "google-api-python-client>=2.201.0",
+    "google-auth-oauthlib>=1.5.0",
+    "httpx>=0.28.1",
+    "keyring>=25.7.0",
+    "pydantic>=2.14.1",
+    "pypdf>=6.21.2",
+    "pyyaml>=6.0.3",
+    "typer>=0.27.3",
+]
+
+[project.scripts]
+jobs = "jobapply.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.11.26,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

@@ -1,0 +1,63 @@
+{
+ "absolute_url": "https://job-boards.greenhouse.io/anthropic/jobs/5456619008",
+ "data_compliance": [
+  {
+   "type": "gdpr",
+   "requires_consent": false,
+   "requires_processing_consent": false,
+   "requires_retention_consent": false,
+   "retention_period": null,
+   "demographic_data_consent_applies": false
+  }
+ ],
+ "internal_job_id": 4563891008,
+ "location": {
+  "name": "San Francisco, CA | Seattle, WA"
+ },
+ "metadata": [
+  {
+   "id": 4036944008,
+   "name": "Location Type",
+   "value": "On-Site",
+   "value_type": "single_select"
+  }
+ ],
+ "id": 5456619008,
+ "updated_at": "2026-10-19T11:17:24-04:00",
+ "requisition_id": "REQ-26-1145-01",
+ "title": "3P Revenue Accounting & Reporting",
+ "pay_input_ranges": [
+  {
+   "min_cents": 19000000,
+   "max_cents": 23000000,
+   "currency_type": "USD",
+   "title": "Annual Salary:",
+   "blurb": "<p>The annual compensation range for this role is listed below.&nbsp;</p>\n<p>For sales roles, the range provided is the role\u2019s On Target Earnings (\"OTE\") range, meaning that the range includes both the sales commissions/sales bonuses target and annual base salary for the role.</p>"
+  }
+ ],
+ "company_name": "Anthropic",
+ "first_published": "2026-10-19T11:17:24-04:00",
+ "language": "en",
+ "application_deadline": null,
+ "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;h2&gt;&lt;strong&gt;About Anthropic&lt;/strong&gt;&lt;/h2&gt;\n&lt;p&gt;Anthropic\u2019s mission is to create reliable, interpretable, and steerable AI systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team is a quickly growing group of committed researchers, engineers, policy experts, and business leaders working t",
+ "departments": [
+  {
+   "id": 4002052008,
+   "name": "Finance",
+   "child_ids": [],
+   "parent_id": null
+  }
+ ],
+ "offices": [
+  {
+   "id": 4001218008,
+   "name": "San Francisco, CA",
+   "location": "San Francisco, California, United States",
+   "child_ids": [],
+   "parent_id": null
+  }
+ ],
+ "ai_disclaimer": null,
+ "include_ai_disclaimer": null,
+ "ai_opt_out_request_url": null
+}
