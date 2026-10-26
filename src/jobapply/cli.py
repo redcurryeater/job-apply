@@ -24,9 +24,7 @@ for stream in (sys.stdout, sys.stderr, sys.stdin):
         stream.reconfigure(encoding="utf-8")
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="Job application tracker + agent helpers.")
-creds_app = typer.Typer(no_args_is_help=True,
-                        help="Job-portal accounts (passwords live in the OS keyring, or a 0600 file with "
-                             "JOBAPPLY_PASSWORD_STORE=file).")
+creds_app = typer.Typer(no_args_is_help=True, help="Job-portal accounts (passwords live in a 0600 file in secrets).")
 mail_app = typer.Typer(no_args_is_help=True, help="Read-only Gmail: recruiting-mail scan, verification links.")
 app.add_typer(creds_app, name="creds")
 app.add_typer(mail_app, name="mail")

@@ -151,47 +151,32 @@ def test_portal_host_and_password():
     assert len(pw) == 20 and any(c in creds.SYMBOLS for c in pw)
 
 
-def test_creds_round_trip(tmp_path, monkeypatch):
-    store = {}
-    monkeypatch.setattr(creds, "ACCOUNTS", tmp_path / "accounts.json")
-    monkeypatch.setattr(creds.paths, "SECRETS", tmp_path)
-    monkeypatch.setattr(creds.keyring, "set_password", lambda s, u, p: store.__setitem__((s, u), p))
-    monkeypatch.setattr(creds.keyring, "get_password", lambda s, u: store.get((s, u)))
+@pytest.fixture
+def creds_dir(tmp_path, monkeypatch):
+    d = tmp_path / "s"
+    monkeypatch.setattr(creds, "ACCOUNTS", d / "accounts.json")
+    monkeypatch.setattr(creds, "PASSWORDS", d / "passwords.json")
+    monkeypatch.setattr(creds.paths, "SECRETS", d)
+    return d
+
+
+def test_creds_round_trip(creds_dir):
     host, pw = creds.new("https://acme.wd1.myworkdayjobs.com/x", "me@example.com")
     assert creds.get("acme.wd1.myworkdayjobs.com") == (host, "me@example.com", pw)
+    assert creds.get("other.example.com") is None
     with pytest.raises(SystemExit):
         creds.new(host, "me@example.com")
-    assert "password" not in (tmp_path / "accounts.json").read_text()
+    assert "password" not in (creds_dir / "accounts.json").read_text()
+    assert json.loads((creds_dir / "passwords.json").read_text()) == {host: pw}
 
 
-def test_creds_file_store(tmp_path, monkeypatch):
+def test_creds_files_are_owner_only(creds_dir):
     import os
     import stat
-
-    def no_keyring(*a):
-        raise AssertionError("keyring must not be used")
-    monkeypatch.setenv("JOBAPPLY_PASSWORD_STORE", "file")
-    monkeypatch.setattr(creds, "ACCOUNTS", tmp_path / "s" / "accounts.json")
-    monkeypatch.setattr(creds, "PASSWORDS", tmp_path / "s" / "passwords.json")
-    monkeypatch.setattr(creds.paths, "SECRETS", tmp_path / "s")
-    monkeypatch.setattr(creds.keyring, "set_password", no_keyring)
-    monkeypatch.setattr(creds.keyring, "get_password", no_keyring)
-    host, pw = creds.new("jobs.lever.co", "me@example.com")
-    assert creds.get("https://jobs.lever.co/acme") == (host, "me@example.com", pw)
-    assert json.loads((tmp_path / "s" / "passwords.json").read_text()) == {host: pw}
+    creds.new("jobs.lever.co", "me@example.com")
     if os.name == "posix":
-        assert stat.S_IMODE((tmp_path / "s" / "passwords.json").stat().st_mode) == 0o600
-        assert stat.S_IMODE((tmp_path / "s").stat().st_mode) == 0o700
-
-
-def test_creds_without_keyring_explains_file_store(tmp_path, monkeypatch):
-    def fail(*a):
-        raise creds.NoKeyringError()
-    monkeypatch.delenv("JOBAPPLY_PASSWORD_STORE", raising=False)
-    monkeypatch.setattr(creds, "ACCOUNTS", tmp_path / "accounts.json")
-    monkeypatch.setattr(creds.keyring, "set_password", fail)
-    with pytest.raises(SystemExit, match="JOBAPPLY_PASSWORD_STORE=file"):
-        creds.new("jobs.lever.co", "me@example.com")
+        assert stat.S_IMODE((creds_dir / "passwords.json").stat().st_mode) == 0o600
+        assert stat.S_IMODE(creds_dir.stat().st_mode) == 0o700
 
 
 def test_paths_split_code_workspace_and_secrets(tmp_path):

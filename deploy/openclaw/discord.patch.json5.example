@@ -1,0 +1,28 @@
+// Discord DM channel for the agent (README.md section 7). Verified against OpenClaw 2026.10.7.
+// Needs the official plugin (`openclaw plugins install @openclaw/discord@<your openclaw version>`) and the
+// bot token in ~/.openclaw/credentials/discord-bot-token (0600). Fill in your Discord user id, then:
+//   openclaw config patch --file <this file> --dry-run   then without --dry-run
+//   openclaw secrets reload && systemctl --user restart openclaw-gateway.service
+{
+  secrets: { providers: {
+    discordtoken: { source: "file", path: "/home/claw/.openclaw/credentials/discord-bot-token", mode: "singleValue" },
+  } },
+  channels: { discord: {
+    enabled: true,
+    token: { source: "file", provider: "discordtoken", id: "value" },  // the token never sits in the config
+    dmPolicy: "allowlist",
+    allowFrom: ["<YOUR_DISCORD_USER_ID>"],   // Discord: Settings → Advanced → Developer Mode, right-click yourself → Copy User ID
+    groupPolicy: "disabled",                 // DMs only; it ignores server channels
+    dm: { enabled: true, groupEnabled: false },
+    allowBots: false,
+    configWrites: false,
+    // DMs carry message text without the privileged intent, so don't request it (Discord would refuse the login).
+    intents: { messageContent: false, presence: false, guildMembers: false, voiceStates: false },
+    actions: {                               // replying and reacting only; no server administration
+      reactions: true, messages: true, threads: false, pins: false, polls: false, stickers: false,
+      emojiUploads: false, stickerUploads: false, permissions: false, search: false, memberInfo: false,
+      roleInfo: false, roles: false, channelInfo: false, channels: false, voiceStatus: false,
+      events: false, moderation: false, presence: false,
+    },
+  } },
+}

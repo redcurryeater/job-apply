@@ -11,7 +11,7 @@ Uses the `browser` tool on the agent's own profile (`openclaw` on the agent box)
 rules in `AGENTS.md` now; they override everything below.** Only run this when the owner asked for it in
 the conversation — never from a scheduled run.
 
-Talking to the owner: on the agent box the conversation is Telegram. "Ask and wait" means: send the
+Talking to the owner: on the agent box the conversation is a Discord DM. "Ask and wait" means: send the
 question as your reply and stop until they answer. Keep messages short and never include passwords.
 
 ## Pick the jobs

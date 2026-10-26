@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Setup
 
-Walk the user through this one step at a time; confirm each step worked before moving on. Skip steps that are already done (check for `data/.git`, `profile/profile.yaml`, `secrets/gmail_token.json`).
+Walk the user through this one step at a time; confirm each step worked before moving on. Skip steps that are already done (check for `data/.git`, `profile/profile.yaml`).
 
 ## 0. Prerequisites
 Check: `uv --version`, `git --version`, `gh auth status`. If `gh` isn't logged in, ask the user to run `gh auth login` themselves. Run `uv sync`.
@@ -31,9 +31,7 @@ Ask: target roles, level (intern / new grad / experienced), locations or remote,
 Sanity-check the filters with `uv run jobs fetch --dry-run` (prints matches without saving) and adjust until the list looks right. Then push the settings: `git -C data add search.toml && git -C data commit -m "search settings" && git -C data push`.
 
 ## 4. Gmail (read-only)
-1. They need `gmail_client.json` from the project owner (who must also add their Gmail address as a test user in Google Cloud). Ask them to save it as `secrets/gmail_client.json` — don't open it.
-2. `uv run jobs mail auth` → a browser consent page opens; they approve read-only access. Explain: the app is in testing mode, so this must be repeated about weekly.
-3. If their school/work Google account blocks it, suggest a personal Gmail with a forwarding filter for recruiting mail.
+Gmail is read by the agent box, not this checkout. Point them to the "Gmail OAuth app" section of `README.md` to create `gmail_client.json`, and to section 4 of `deploy/openclaw/README.md` to copy it over and sign in. Don't open the file. If their school/work Google account blocks it, suggest a personal Gmail with a forwarding filter for recruiting mail.
 
 ## 5. Dashboard
 1. `uv run jobs init` printed a token link. Tell them to open it, choose **Only select repositories → job-data**, Repository permissions → **Contents: Read and write**, generate, and copy the token. Stress that it must be limited to job-data, never "All repositories": the dashboard can't check that, and an all-repo token that leaked could be used to edit any of their repos. Classic and `gh auth token` tokens are refused by the dashboard.

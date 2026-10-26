@@ -1,6 +1,6 @@
 # job-apply
 
-Find jobs, fill out applications with an agent on a dedicated Linux machine ([OpenClaw](https://docs.openclaw.ai) + Claude, controlled from Telegram), and track everything on a private dashboard.
+Find jobs, fill out applications with an agent on a dedicated Linux machine ([OpenClaw](https://docs.openclaw.ai) + Claude, controlled from Discord DMs), and track everything on a private dashboard.
 
 - **Find** – pulls new listings from the [SimplifyJobs](https://github.com/SimplifyJobs) GitHub trackers, company boards (Greenhouse, Lever, Ashby) and LinkedIn, then scores them against your resume.
 - **Apply** – fills out the applications you queue, in the agent's own browser. It creates a separate account on each job portal, with a unique generated password kept on the agent machine. It also confirms sign-up emails through read-only Gmail access, waits for you on CAPTCHAs and on questions it can't answer, and submits only after you reply "submit" to its summary.
@@ -37,12 +37,11 @@ claude
 - creating your private data repo
 - building `profile/profile.yaml` from your resume
 - choosing your search settings
-- connecting Gmail
 - creating a dashboard token
 
-For Gmail you need `gmail_client.json` from the project owner, and the owner has to add your Gmail address as a tester first. Ask them for both.
+Then set up the agent box with [deploy/openclaw/README.md](deploy/openclaw/README.md). Gmail is connected there, using a `gmail_client.json` you create once (see [Gmail OAuth app](#gmail-oauth-app-one-time)).
 
-## Use it (message the agent on Telegram)
+## Use it (DM the agent on Discord)
 
 | Command | What it does |
 | --- | --- |
@@ -50,9 +49,9 @@ For Gmail you need `gmail_client.json` from the project owner, and the owner has
 | `/apply` | Applies to every job you queued on the dashboard. Add job ids to pick specific jobs. Each application ends with a summary; reply "submit" to send it |
 | `/check-email` | Updates job statuses from your inbox. Runs every 6 hours on its own |
 
-`/find-jobs --no-linkedin` and `/check-email` also work in Claude Code on your own computer (no browser needed).
+`/find-jobs --no-linkedin` also works in Claude Code on your own computer (no browser needed).
 
-The CLI also works on its own: `uv run jobs --help`, for example `jobs fetch --dry-run`, `jobs list --status queued`, `jobs show <id>`, `jobs creds get <portal>`.
+The CLI also works on its own: `uv run jobs --help`, for example `jobs fetch --dry-run`, `jobs list --status queued`, `jobs show <id>`.
 
 ### Per-company caps
 
@@ -77,7 +76,7 @@ The agent box enforces the important parts instead of trusting the model to foll
 - The agent can run only allowlisted `jobs` subcommands.
 - It can't edit its code or rules.
 - It can't read the Gmail token or the password file.
-- It answers only your Telegram account.
+- It answers only your Discord account, in DMs.
 
 It runs on a separate machine, away from your personal browser. See [deploy/openclaw/README.md](deploy/openclaw/README.md).
 
@@ -95,18 +94,18 @@ The token is stored only in your browser's localStorage, and the **Lock** button
 
 If you'd rather not paste a token into a hosted page, run `uv run jobs dashboard` to serve the same page on localhost.
 
-## For the owner: the shared Gmail OAuth app (one time)
+## Gmail OAuth app (one time)
 
 1. In the [Google Cloud console](https://console.cloud.google.com/), create a project and enable the **Gmail API**.
 2. Set up the **OAuth consent screen**:
    - User type: External
    - Publishing status: **Testing**
    - Scope: `.../auth/gmail.readonly`
-   - Under **Test users**, add each friend's Gmail address (up to 100)
+   - Under **Test users**, add the Gmail address the agent should read
 3. Under **Credentials**, create an OAuth client ID of type **Desktop app**, then download its JSON.
-4. Send that JSON privately to each friend, who saves it as `secrets/gmail_client.json`. It never goes in git.
+4. Copy it to the agent box as `~/.config/jobapply/gmail_client.json` (section 4 of the agent-box guide). It never goes in git.
 
-While the app is in Testing mode, logins expire after 7 days, so everyone runs `uv run jobs mail auth` again about once a week. Google Workspace accounts, such as school accounts, may block outside apps. If that happens, use a personal Gmail and forward recruiting mail to it.
+While the app is in Testing mode, logins expire after 7 days, so renew it about once a week with `jobs mail auth --no-browser --port 8765` on the agent box, over an SSH tunnel. Google Workspace accounts, such as school accounts, may block outside apps. If that happens, use a personal Gmail and forward recruiting mail to it.
 
 ## Development
 

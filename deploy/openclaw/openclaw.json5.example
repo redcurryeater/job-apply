@@ -47,14 +47,5 @@
     evaluateEnabled: false,                               // no arbitrary page JavaScript from the model
     // ssrfPolicy: leave the defaults (private network blocked)
   },
-
-  channels: {
-    telegram: {
-      enabled: true,
-      tokenFile: "/home/claw/.openclaw/credentials/telegram-bot-token",   // 0600, regular file (no symlink)
-      dmPolicy: "allowlist",
-      allowFrom: ["<YOUR_NUMERIC_TELEGRAM_USER_ID>"],
-      groupPolicy: "disabled",
-    },
-  },
+  // Chat channel: discord.patch.json5.example, applied once the bot token is saved.
 }
