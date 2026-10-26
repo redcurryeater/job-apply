@@ -140,20 +140,32 @@ claw$ echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc && source ~/
 claw$ curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard
 #   or: npm install -g openclaw@latest --allow-scripts=openclaw   (drop the flag on npm older than 11.16)
 claw$ openclaw --version     # compare with https://github.com/openclaw/openclaw/releases; stay current
-claw$ openclaw onboard --install-daemon
-#   Provider: Anthropic → Claude CLI (not API key, not setup-token). Skip channels and skills for now.
-claw$ openclaw models auth login --provider anthropic --method cli --set-default
-claw$ nano ~/.openclaw/openclaw.json
-#   Merge in /opt/jobapply/deploy/openclaw/openclaw.json5.example: keep what onboarding wrote, add or
-#   override every key from the template, and fill the <...> placeholders.
-claw$ chmod 700 ~/.openclaw && chmod 600 ~/.openclaw/openclaw.json
-claw$ openclaw approvals set --file /opt/jobapply/deploy/openclaw/exec-approvals.example.json
+# systemctl --user needs these when you arrive via `sudo -iu claw` (they're in claw's .bashrc too):
+claw$ export XDG_RUNTIME_DIR=/run/user/$(id -u) DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
 claw$ mkdir -p ~/.config/systemd/user/openclaw-gateway.service.d
 claw$ cp /opt/jobapply/deploy/openclaw/systemd/openclaw-gateway.service.d/jobapply.conf \
          ~/.config/systemd/user/openclaw-gateway.service.d/
-claw$ systemctl --user daemon-reload && systemctl --user restart openclaw-gateway.service
-claw$ openclaw doctor && openclaw security audit --deep && openclaw approvals get
+# Onboard without the wizard: Claude CLI auth, loopback + random token, no channels/skills/search yet.
+# --skip-bootstrap keeps OpenClaw's starter files away from the immutable AGENTS.md.
+claw$ openclaw onboard --non-interactive --accept-risk --mode local --flow manual \
+        --auth-choice anthropic-cli \
+        --gateway-bind loopback --gateway-auth token --gateway-token "$(openssl rand -hex 32)" \
+        --suppress-gateway-token-output --workspace /home/claw/jobapply-home --skip-bootstrap \
+        --skip-channels --skip-skills --skip-search --skip-hooks --skip-ui --install-daemon
+claw$ cp /opt/jobapply/deploy/openclaw/openclaw.json5.example ~/.openclaw/jobapply.patch.json5
+claw$ openclaw config patch --file ~/.openclaw/jobapply.patch.json5 --dry-run    # then without --dry-run
+claw$ chmod 700 ~/.openclaw && chmod 600 ~/.openclaw/openclaw.json
+claw$ openclaw approvals set --file /opt/jobapply/deploy/openclaw/exec-approvals.example.json
+claw$ systemctl --user daemon-reload && systemctl --user restart openclaw-gateway.service   # ~15 s to start
+claw$ openclaw config validate && openclaw security audit --deep && openclaw approvals get
+claw$ openclaw config get tools.allow     # must include "browser" and "message"
 ```
+- Onboarding enables a 30-minute **heartbeat** that wakes the agent unattended; the patch turns it off.
+- `openclaw doctor` suggests `--fix` to migrate tool settings. On 2026.10.7 that drops `browser` and
+  `message` from `tools.allow`. If you run it, put them back with
+  `openclaw config set tools.allow '["exec","read","write","edit","browser","message"]' --strict-json`.
+- Leave `commands.ownerAllowFrom` unset: an owner can update, restart and reconfigure OpenClaw from chat,
+  which this setup never needs.
 - **Never install skills from ClawHub.** Hundreds of malicious skills were found there in 2026. The
   config loads only this repo's skills.
 - The approvals file allows exactly one binary with an anchored set of subcommands. Not allowed:
@@ -164,9 +176,11 @@ claw$ openclaw doctor && openclaw security audit --deep && openclaw approvals ge
   reach `jobs` or `data/`. Isolation comes from the separate user, the read-only code, the exec allowlist
   and `tools.fs.workspaceOnly`.
 
-Quick check in the terminal UI (`openclaw`):
-1. `Reply with exactly: OK`
-2. `Use your browser tool to open https://example.com and tell me the main heading.` The answer should be "Example Domain".
+Quick check (or type the same in the terminal UI, `openclaw`):
+```bash
+claw$ cd ~/jobapply-home && openclaw agent --agent main -m 'List the tools you can call, then use your browser tool to open https://example.com and tell me the page title.'
+```
+Expect exactly `browser, edit, exec, message, read, write`, and the title "Example Domain".
 
 ## 7. Telegram (claw)
 1. In Telegram, message @BotFather, send `/newbot`, and copy the token.

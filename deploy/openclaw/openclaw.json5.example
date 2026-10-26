@@ -1,26 +1,19 @@
-// ~/.openclaw/openclaw.json for the `claw` user on the agent box (see README.md in this folder).
-// Copy it, fill the <...> placeholders, then `chmod 600 ~/.openclaw/openclaw.json`.
-// OpenClaw renames keys between releases: check every key against `openclaw config schema` for your
-// installed version, then run `openclaw doctor` and `openclaw security audit --deep`.
+// Lockdown patch for ~/.openclaw/openclaw.json on the agent box (see README.md in this folder).
+// Verified against OpenClaw 2026.10.7. Gateway (loopback + token) and the claude-cli runtime come from
+// the non-interactive `openclaw onboard` in the README; apply this on top:
+//   openclaw config patch --file <this file> --dry-run   then without --dry-run
+// Don't run `openclaw doctor --fix` afterwards without re-checking `openclaw config get tools.allow`:
+// on 2026.10.7 it drops "browser" and "message" from the allow list.
 {
-  gateway: {
-    mode: "local",
-    bind: "loopback",                                    // never reachable from the network
-    auth: { mode: "token", token: "<output of: openssl rand -hex 32>" },
-  },
   session: { dmScope: "per-channel-peer" },
 
   agents: {
     defaults: {
-      workspace: "/home/claw/jobapply-home",
-      // The brain: the official Claude Code binary, signed in with your own plan (`claude auth login`).
-      // Never paste a setup-token or API key tied to someone else's org here.
-      // Exact refs: `openclaw models list --provider anthropic`.
-      model: { primary: "anthropic/claude-sonnet-5-5" },
-      models: {
-        "anthropic/claude-sonnet-5-5": { agentRuntime: { id: "claude-cli" } },
-      },
+      // Onboarding with --auth-choice anthropic-cli already maps anthropic/* to the claude-cli runtime
+      // (the official Claude Code binary, signed in with your own plan). Never use a setup-token here.
+      model: { primary: "anthropic/claude-sonnet-5-5" },  // lighter on plan limits than Opus
       skills: ["apply", "check-email", "find-jobs"],      // nothing else is visible to the agent
+      heartbeat: { every: "0m" },                         // no unattended wake-ups; schedules are explicit
     },
   },
 
@@ -30,6 +23,7 @@
   },
 
   tools: {
+    profile: "full",                                      // with "full", tools.allow is the exact tool list
     allow: ["browser", "exec", "read", "write", "edit", "message"],
     deny: [
       "group:automation",    // cron/automations, gateway, plugins: you manage those from the CLI, not the agent
@@ -38,10 +32,11 @@
       "sessions_spawn", "sessions_send",
     ],
     fs: { workspaceOnly: true },                          // secrets live outside the workspace
-    exec: { security: "allowlist", ask: "on-miss", askFallback: "deny" },  // allowlist: exec-approvals.example.json
+    exec: { mode: "ask" },     // allowlist + ask on miss; askFallback "deny" lives in exec-approvals.example.json
     elevated: { enabled: false },
     agentToAgent: { enabled: false },
     message: { crossContext: { allowWithinProvider: false, allowAcrossProviders: false } },
+    web: { search: { enabled: false } },
   },
 
   browser: {
