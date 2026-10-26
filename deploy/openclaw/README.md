@@ -75,6 +75,8 @@ claw$ curl -fsSL https://claude.ai/install.sh | bash -s stable
 claw$ echo 'export PATH="/opt/jobapply/.venv/bin:$HOME/.local/bin:$PATH"' >> ~/.bashrc
 claw$ cat >> ~/.bashrc <<'ENV'
 export JOBAPPLY_HOME=$HOME/jobapply-home JOBAPPLY_SECRETS=$HOME/.config/jobapply JOBAPPLY_PASSWORD_STORE=file
+export XDG_RUNTIME_DIR=/run/user/$(id -u) DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
+alias jobs=/opt/jobapply/.venv/bin/jobs   # `jobs` is also a bash builtin; OpenClaw's exec runs the binary directly
 ENV
 claw$ source ~/.bashrc
 claw$ mkdir -p ~/.claude && cp /opt/jobapply/deploy/openclaw/claude-settings.json ~/.claude/settings.json
