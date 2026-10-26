@@ -1,5 +1,5 @@
 # Job search settings. Lives in your private job-data repo; editable from the dashboard's Settings tab.
-# `uv run jobs fetch` uses everything except [linkedin], which /find-jobs runs in Chrome.
+# `uv run jobs fetch` uses everything except [linkedin], which /find-jobs runs in the agent's browser.
 
 [filters]
 # A title must contain at least one of these (case-insensitive) to be considered.

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "agents": {
+    "main": {
+      "security": "allowlist",
+      "ask": "on-miss",
+      "askFallback": "deny",
+      "allowlist": [
+        {
+          "id": "jobapply-cli",
+          "pattern": "/opt/jobapply/.venv/bin/jobs",
+          "argPattern": "^(list|show|limits|add|update|fetch|resume-text|creds (get|new|list)|mail (scan|done|verify-link))( |$)"
+        }
+      ]
+    }
+  }
+}

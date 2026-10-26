@@ -70,7 +70,7 @@ def init(repo: str = "job-data") -> list[str]:
         log.append(f"seeded {', '.join(seeded)} and pushed")
 
     paths.PROFILE.mkdir(exist_ok=True)
-    paths.SECRETS.mkdir(exist_ok=True)
+    paths.ensure_secrets()
     if not paths.PROFILE_FILE.exists():
         shutil.copy(paths.TEMPLATES / "profile.example.yaml", paths.PROFILE_FILE)
         log.append(f"created {paths.PROFILE_FILE} from the template (fill it in)")

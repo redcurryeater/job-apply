@@ -1,0 +1,11 @@
+[Unit]
+Description=VNC view of display :99 (localhost only; reach it through an SSH tunnel)
+Requires=xvfb.service
+After=xvfb.service
+
+[Service]
+ExecStart=/usr/bin/x11vnc -display :99 -localhost -rfbauth %h/.vnc/passwd -forever -shared -noxdamage -quiet
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

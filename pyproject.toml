@@ -1,7 +1,7 @@
 [project]
 name = "jobapply"
 version = "0.1.0"
-description = "Find jobs, apply with Claude in Chrome, and track it all in a private dashboard"
+description = "Find jobs, apply with an OpenClaw + Claude agent, and track it all in a private dashboard"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

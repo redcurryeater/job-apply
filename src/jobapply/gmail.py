@@ -22,7 +22,8 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 CLIENT_FILE = paths.SECRETS / "gmail_client.json"
 TOKEN_FILE = paths.SECRETS / "gmail_token.json"
 
-REAUTH = "Gmail login expired or missing. Run `uv run jobs mail auth` (re-consent is needed every 7 days)."
+REAUTH = ("Gmail login expired or missing. Run `jobs mail auth` (headless box: `jobs mail auth --no-browser "
+          "--port 8765` over `ssh -L 8765:localhost:8765`); re-consent is needed every 7 days.")
 
 ATS_SENDERS = ["greenhouse.io", "greenhouse-mail.io", "lever.co", "hire.lever.co", "ashbyhq.com", "myworkday.com",
                "myworkdayjobs.com", "workday.com", "icims.com", "taleo.net", "smartrecruiters.com", "jobvite.com",
@@ -33,13 +34,14 @@ SUBJECT_TERMS = ["application", "applying", "interview", "assessment", "coding c
                  "online assessment", "schedule", "position"]
 
 
-def auth() -> str:
+def auth(port: int = 0, open_browser: bool = True) -> str:
+    """Consent in a browser. On a headless box pass a fixed port and open_browser=False, forward the port over
+    SSH (`ssh -L <port>:localhost:<port> ...`) and open the printed URL in your own browser."""
     if not CLIENT_FILE.exists():
         raise SystemExit(f"Missing {CLIENT_FILE}. Ask the project owner for gmail_client.json.")
     flow = InstalledAppFlow.from_client_secrets_file(str(CLIENT_FILE), SCOPES)
-    creds = flow.run_local_server(port=0, prompt="consent")
-    paths.SECRETS.mkdir(exist_ok=True)
-    TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
+    creds = flow.run_local_server(port=port, open_browser=open_browser, prompt="consent")
+    paths.write_secret(TOKEN_FILE, creds.to_json())
     profile = build("gmail", "v1", credentials=creds).users().getProfile(userId="me").execute()
     return profile["emailAddress"]
 
@@ -53,7 +55,7 @@ def service():
             creds.refresh(Request())
         except RefreshError:
             raise SystemExit(REAUTH)
-        TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
+        paths.write_secret(TOKEN_FILE, creds.to_json())
     return build("gmail", "v1", credentials=creds, cache_discovery=False)
 
 

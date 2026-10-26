@@ -1,0 +1,21 @@
+{
+  "env": {
+    "DISABLE_AUTOUPDATER": "1"
+  },
+  "permissions": {
+    "deny": [
+      "Bash",
+      "PowerShell",
+      "Edit",
+      "Write",
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch",
+      "Read(~/.config/jobapply/**)",
+      "Read(~/.openclaw/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.claude/**)",
+      "Read(~/.vnc/**)"
+    ]
+  }
+}

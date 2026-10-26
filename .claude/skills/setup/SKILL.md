@@ -39,8 +39,8 @@ Sanity-check the filters with `uv run jobs fetch --dry-run` (prints matches with
 1. `uv run jobs init` printed a token link. Tell them to open it, choose **Only select repositories → job-data**, Repository permissions → **Contents: Read and write**, generate, and copy the token. Stress that it must be limited to job-data, never "All repositories": the dashboard can't check that, and an all-repo token that leaked could be used to edit any of their repos. Classic and `gh auth token` tokens are refused by the dashboard.
 2. Open https://redcurryeater.github.io/job-apply/ and enter `<user>/job-data` + the token. (Alternative: `uv run jobs dashboard` for a localhost copy.)
 
-## 6. Browser safety
-Tell them to start Claude Code with `claude --chrome` (or `/chrome`) for `/find-jobs` and `/apply`, and in the Claude in Chrome extension settings, block: `mail.google.com`, `accounts.google.com`, `outlook.live.com`, `outlook.office.com`, `login.microsoftonline.com`, their school SSO domain, and their password manager's web vault.
+## 6. Agent box
+Browser work (`/find-jobs` LinkedIn, `/apply`) runs on a separate Linux machine with OpenClaw, never in their personal browser. Point them to `deploy/openclaw/README.md`; it copies their `profile/` and `gmail_client.json` over and needs nothing else from this checkout.
 
 ## 7. First run
-Offer to run `/find-jobs` now.
+Offer to run `/find-jobs --no-linkedin` now (no browser needed).

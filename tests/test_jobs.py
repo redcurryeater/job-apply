@@ -164,6 +164,64 @@ def test_creds_round_trip(tmp_path, monkeypatch):
     assert "password" not in (tmp_path / "accounts.json").read_text()
 
 
+def test_creds_file_store(tmp_path, monkeypatch):
+    import os
+    import stat
+
+    def no_keyring(*a):
+        raise AssertionError("keyring must not be used")
+    monkeypatch.setenv("JOBAPPLY_PASSWORD_STORE", "file")
+    monkeypatch.setattr(creds, "ACCOUNTS", tmp_path / "s" / "accounts.json")
+    monkeypatch.setattr(creds, "PASSWORDS", tmp_path / "s" / "passwords.json")
+    monkeypatch.setattr(creds.paths, "SECRETS", tmp_path / "s")
+    monkeypatch.setattr(creds.keyring, "set_password", no_keyring)
+    monkeypatch.setattr(creds.keyring, "get_password", no_keyring)
+    host, pw = creds.new("jobs.lever.co", "me@example.com")
+    assert creds.get("https://jobs.lever.co/acme") == (host, "me@example.com", pw)
+    assert json.loads((tmp_path / "s" / "passwords.json").read_text()) == {host: pw}
+    if os.name == "posix":
+        assert stat.S_IMODE((tmp_path / "s" / "passwords.json").stat().st_mode) == 0o600
+        assert stat.S_IMODE((tmp_path / "s").stat().st_mode) == 0o700
+
+
+def test_creds_without_keyring_explains_file_store(tmp_path, monkeypatch):
+    def fail(*a):
+        raise creds.NoKeyringError()
+    monkeypatch.delenv("JOBAPPLY_PASSWORD_STORE", raising=False)
+    monkeypatch.setattr(creds, "ACCOUNTS", tmp_path / "accounts.json")
+    monkeypatch.setattr(creds.keyring, "set_password", fail)
+    with pytest.raises(SystemExit, match="JOBAPPLY_PASSWORD_STORE=file"):
+        creds.new("jobs.lever.co", "me@example.com")
+
+
+def test_paths_split_code_workspace_and_secrets(tmp_path):
+    import os
+    import sys
+    env = {**os.environ, "JOBAPPLY_HOME": str(tmp_path / "home"), "JOBAPPLY_SECRETS": str(tmp_path / "sec")}
+    r = subprocess.run([sys.executable, "-c", "from jobapply import paths; "
+                        "print(paths.DATA, paths.SECRETS, paths.TEMPLATES, sep='\\n')"],
+                       capture_output=True, text=True, env=env, cwd=tmp_path, check=True)
+    data, secrets_dir, templates = map(Path, r.stdout.splitlines())
+    assert data == (tmp_path / "home" / "data").resolve()
+    assert secrets_dir == (tmp_path / "sec").resolve()
+    assert (templates / "search.example.toml").exists()   # from the code checkout, not JOBAPPLY_HOME
+
+
+def test_add_json_only_reads_workspace_files(tmp_path, monkeypatch):
+    from jobapply import cli
+    monkeypatch.setattr(cli.paths, "ROOT", tmp_path / "home")
+    monkeypatch.setattr(cli.paths, "SECRETS", tmp_path / "home" / "secrets")
+    (tmp_path / "home" / "secrets").mkdir(parents=True)
+    (tmp_path / "home" / "new.json").write_text('[{"x": 1}]')
+    (tmp_path / "home" / "secrets" / "passwords.json").write_text('{"a": "b"}')
+    (tmp_path / "outside.json").write_text('{"a": "b"}')
+    assert cli.read_json_arg(str(tmp_path / "home" / "new.json")) == [{"x": 1}]
+    for bad in (tmp_path / "outside.json", tmp_path / "home" / "secrets" / "passwords.json",
+                tmp_path / "home" / ".." / "outside.json"):
+        with pytest.raises(SystemExit):
+            cli.read_json_arg(str(bad))
+
+
 # --- per-company caps -------------------------------------------------------------
 from datetime import datetime, timedelta, timezone  # noqa: E402
 

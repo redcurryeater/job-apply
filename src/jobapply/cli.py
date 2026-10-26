@@ -24,7 +24,9 @@ for stream in (sys.stdout, sys.stderr, sys.stdin):
         stream.reconfigure(encoding="utf-8")
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="Job application tracker + agent helpers.")
-creds_app = typer.Typer(no_args_is_help=True, help="Job-portal accounts (passwords live in the OS keyring).")
+creds_app = typer.Typer(no_args_is_help=True,
+                        help="Job-portal accounts (passwords live in the OS keyring, or a 0600 file with "
+                             "JOBAPPLY_PASSWORD_STORE=file).")
 mail_app = typer.Typer(no_args_is_help=True, help="Read-only Gmail: recruiting-mail scan, verification links.")
 app.add_typer(creds_app, name="creds")
 app.add_typer(mail_app, name="mail")
@@ -39,7 +41,14 @@ def dump(job: Job) -> dict:
 
 
 def read_json_arg(src: str):
-    return json.loads(sys.stdin.read() if src == "-" else Path(src).read_text(encoding="utf-8"))
+    if src == "-":
+        return json.loads(sys.stdin.read())
+    # Only files in the workspace: a validation error would echo the file's contents, so `--json` must not
+    # be a way for the agent to read the secrets folder or anything else outside its workspace.
+    path = (paths.ROOT / src).resolve()  # relative paths are taken from the workspace, whatever the cwd
+    if not path.is_relative_to(paths.ROOT) or path.is_relative_to(paths.SECRETS):
+        raise SystemExit(f"--json must be '-' or a file inside {paths.ROOT} (and not in the secrets folder).")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 # --- setup ------------------------------------------------------------------
@@ -280,10 +289,18 @@ def creds_list():
 
 # --- gmail ------------------------------------------------------------------
 @mail_app.command("auth")
-def mail_auth():
-    """Sign in to Gmail (read-only) in the browser. Needed once a week."""
+def mail_auth(
+    port: Annotated[int, typer.Option(help="Fixed callback port, so it can be forwarded over SSH (0 = any).")] = 0,
+    no_browser: Annotated[bool, typer.Option("--no-browser", help="Print the consent URL instead of opening it.")] = False,
+):
+    """Sign in to Gmail (read-only) in the browser. Needed once a week.
+
+    Headless box: run `jobs mail auth --no-browser --port 8765` there, connect with
+    `ssh -L 8765:localhost:8765 <box>`, and open the printed URL in your own browser."""
     from . import gmail
-    typer.echo(f"Authorized read-only access to {gmail.auth()}")
+    if no_browser and not port:
+        raise typer.BadParameter("--no-browser needs a fixed --port to forward over SSH")
+    typer.echo(f"Authorized read-only access to {gmail.auth(port, open_browser=not no_browser)}")
 
 
 @mail_app.command("scan")

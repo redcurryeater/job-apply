@@ -1,0 +1,65 @@
+// ~/.openclaw/openclaw.json for the `claw` user on the agent box (see README.md in this folder).
+// Copy it, fill the <...> placeholders, then `chmod 600 ~/.openclaw/openclaw.json`.
+// OpenClaw renames keys between releases: check every key against `openclaw config schema` for your
+// installed version, then run `openclaw doctor` and `openclaw security audit --deep`.
+{
+  gateway: {
+    mode: "local",
+    bind: "loopback",                                    // never reachable from the network
+    auth: { mode: "token", token: "<output of: openssl rand -hex 32>" },
+  },
+  session: { dmScope: "per-channel-peer" },
+
+  agents: {
+    defaults: {
+      workspace: "/home/claw/jobapply-home",
+      // The brain: the official Claude Code binary, signed in with your own plan (`claude auth login`).
+      // Never paste a setup-token or API key tied to someone else's org here.
+      // Exact refs: `openclaw models list --provider anthropic`.
+      model: { primary: "anthropic/claude-sonnet-5-5" },
+      models: {
+        "anthropic/claude-sonnet-5-5": { agentRuntime: { id: "claude-cli" } },
+      },
+      skills: ["apply", "check-email", "find-jobs"],      // nothing else is visible to the agent
+    },
+  },
+
+  skills: {
+    load: { extraDirs: ["/opt/jobapply/.claude/skills"], watch: false },
+    allowBundled: [],                                     // no bundled skills; never install from ClawHub
+  },
+
+  tools: {
+    allow: ["browser", "exec", "read", "write", "edit", "message"],
+    deny: [
+      "group:automation",    // cron/automations, gateway, plugins: you manage those from the CLI, not the agent
+      "group:web",           // web_search / web_fetch: the browser is enough, fewer ways to leak data
+      "group:nodes", "process", "code_execution", "apply_patch", "canvas",
+      "sessions_spawn", "sessions_send",
+    ],
+    fs: { workspaceOnly: true },                          // secrets live outside the workspace
+    exec: { security: "allowlist", ask: "on-miss", askFallback: "deny" },  // allowlist: exec-approvals.example.json
+    elevated: { enabled: false },
+    agentToAgent: { enabled: false },
+    message: { crossContext: { allowWithinProvider: false, allowAcrossProviders: false } },
+  },
+
+  browser: {
+    enabled: true,
+    headless: false,                                      // headed on the Xvfb display (:99) so you can take over over VNC
+    defaultProfile: "openclaw",                           // the agent's own profile; never "user"
+    executablePath: "/usr/bin/google-chrome-stable",
+    evaluateEnabled: false,                               // no arbitrary page JavaScript from the model
+    // ssrfPolicy: leave the defaults (private network blocked)
+  },
+
+  channels: {
+    telegram: {
+      enabled: true,
+      tokenFile: "/home/claw/.openclaw/credentials/telegram-bot-token",   // 0600, regular file (no symlink)
+      dmPolicy: "allowlist",
+      allowFrom: ["<YOUR_NUMERIC_TELEGRAM_USER_ID>"],
+      groupPolicy: "disabled",
+    },
+  },
+}
