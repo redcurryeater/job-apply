@@ -12,8 +12,11 @@ def _find_root() -> Path:
         return Path(env).expanduser().resolve()
     here = Path.cwd().resolve()
     for d in (here, *here.parents):
-        if (d / "pyproject.toml").exists() and (d / "src" / "jobapply").exists():
-            return d
+        try:
+            if (d / "pyproject.toml").exists() and (d / "src" / "jobapply").exists():
+                return d
+        except PermissionError:  # e.g. run as another user from a home folder it can't read
+            continue
     # Installed elsewhere: fall back to the package's own checkout.
     return CODE
 
