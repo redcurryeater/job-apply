@@ -58,17 +58,35 @@ def init(repo: Annotated[str, typer.Option(help="Name of your private data repo.
         typer.echo(line)
 
 
+def resume_file() -> Path:
+    """profile/<resume> (profile.yaml `resume:`, default resume.pdf); never a file outside profile/."""
+    resume = "resume.pdf"
+    if paths.PROFILE_FILE.exists():
+        resume = (yaml.safe_load(paths.PROFILE_FILE.read_text(encoding="utf-8")) or {}).get("resume") or resume
+    pdf = (paths.PROFILE / resume).resolve()
+    if not pdf.is_relative_to(paths.PROFILE.resolve()):
+        raise SystemExit(f"profile.yaml `resume` must name a file inside {paths.PROFILE}")
+    if not pdf.exists():
+        raise SystemExit(f"No resume at {pdf}")
+    return pdf
+
+
 @app.command("resume-text")
 def resume_text():
     """Print the text of profile/<resume> so Claude can read it."""
     from pypdf import PdfReader
-    resume = "resume.pdf"
-    if paths.PROFILE_FILE.exists():
-        resume = (yaml.safe_load(paths.PROFILE_FILE.read_text(encoding="utf-8")) or {}).get("resume") or resume
-    pdf = paths.PROFILE / resume
-    if not pdf.exists():
-        raise SystemExit(f"No resume at {pdf}")
-    typer.echo("\n".join(page.extract_text() or "" for page in PdfReader(pdf).pages))
+    typer.echo("\n".join(page.extract_text() or "" for page in PdfReader(resume_file()).pages))
+
+
+@app.command("stage-resume")
+def stage_resume():
+    """Copy profile/<resume> into the browser's upload folder and print the path to upload."""
+    src = resume_file()
+    paths.UPLOADS.mkdir(mode=0o700, parents=True, exist_ok=True)
+    dst = paths.UPLOADS / src.name
+    dst.write_bytes(src.read_bytes())
+    dst.chmod(0o600)
+    out({"path": str(dst)})
 
 
 # --- tracker ----------------------------------------------------------------

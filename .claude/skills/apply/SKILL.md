@@ -32,7 +32,7 @@ Load `profile/profile.yaml` once. Note the resume path: `profile/<resume>`. Read
    - Workday: each company tenant (`<co>.wd*.myworkdayjobs.com`) is its own account; key creds by full host.
 4. **Fill the form** from `profile.yaml` and the resume:
    - Use the portal's "autofill from resume" when offered, then correct every field against the profile.
-   - **Resume upload:** use the browser tool's file upload with the absolute path of `profile/<resume>` in the workspace. If upload isn't possible, ask the owner to attach it over VNC.
+   - **Resume upload:** run `jobs stage-resume` and upload the `path` it prints with the browser tool's file upload (the tool only accepts files from that folder). If upload still isn't possible, ask the owner to attach it over VNC.
    - Standard questions (work authorization, sponsorship, start date, relocation, EEO) → profile answers verbatim. EEO defaults to "Decline to self-identify" unless the profile says otherwise.
    - Free-text "why us" / short essays → draft from the resume + listing in the owner's voice, send the draft, and wait for approval or edits.
    - **Anything not covered by the profile → stop and ask.** Tell the owner to add the answer to `profile/profile.yaml` under `answers:` for next time (the agent can't edit the profile).

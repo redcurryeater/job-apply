@@ -208,6 +208,24 @@ def test_add_json_only_reads_workspace_files(tmp_path, monkeypatch):
             cli.read_json_arg(str(bad))
 
 
+def test_stage_resume_copies_only_the_profile_resume(tmp_path, monkeypatch):
+    from jobapply import cli
+    profile = tmp_path / "home" / "profile"
+    profile.mkdir(parents=True)
+    monkeypatch.setattr(cli.paths, "PROFILE", profile)
+    monkeypatch.setattr(cli.paths, "PROFILE_FILE", profile / "profile.yaml")
+    monkeypatch.setattr(cli.paths, "UPLOADS", tmp_path / "inbound")
+    (profile / "cv.pdf").write_bytes(b"%PDF-1.4 resume")
+    (profile / "profile.yaml").write_text("resume: cv.pdf\n")
+    cli.stage_resume()
+    assert (tmp_path / "inbound" / "cv.pdf").read_bytes() == b"%PDF-1.4 resume"
+    (tmp_path / "secret.json").write_text("{}")
+    (profile / "profile.yaml").write_text("resume: ../../secret.json\n")
+    with pytest.raises(SystemExit):
+        cli.stage_resume()
+    assert not (tmp_path / "inbound" / "secret.json").exists()
+
+
 # --- per-company caps -------------------------------------------------------------
 from datetime import datetime, timedelta, timezone  # noqa: E402
 

@@ -28,6 +28,8 @@ PROFILE = ROOT / "profile"    # profile.yaml, resume.pdf — never committed any
 # agent box so its file tools can't read them; only the CLI can.
 SECRETS = Path(os.environ["JOBAPPLY_SECRETS"]).expanduser().resolve() if os.environ.get("JOBAPPLY_SECRETS") \
     else ROOT / "secrets"
+# OpenClaw's browser tool only uploads files from its inbound media folder; `jobs stage-resume` copies the resume there.
+UPLOADS = Path(os.environ.get("JOBAPPLY_UPLOADS", "~/.openclaw/media/inbound")).expanduser()
 TEMPLATES = CODE / "templates"
 DOCS = CODE / "docs"
 
