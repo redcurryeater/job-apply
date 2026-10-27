@@ -171,9 +171,12 @@ def test_filters():
     assert passes_filters(ok, CFG, today) is None
     assert passes_filters(ok.model_copy(update={"role": "Senior Software Engineer"}), CFG, today).startswith("title excluded")
     assert passes_filters(ok.model_copy(update={"role": "Accountant"}), CFG, today) == "title not included"
-    assert passes_filters(ok.model_copy(update={"location": ["Austin, TX"]}), CFG, today) == "location"
+    austin = ok.model_copy(update={"location": ["Austin, TX"]})
+    assert passes_filters(austin, CFG, today) is None  # locations only rank unless only_preferred_locations
+    strict = CFG.__class__(**{**CFG.__dict__, "only_preferred_locations": True})
+    assert passes_filters(austin, strict, today) == "location"
     paris = ok.model_copy(update={"location": ["Paris, France"], "remote": True})
-    assert passes_filters(paris, CFG, today) == "location"
+    assert passes_filters(paris, strict, today) == "location"
     assert passes_filters(ok.model_copy(update={"date_posted": date(2026, 1, 1)}), CFG, today) == "too old"
 
 

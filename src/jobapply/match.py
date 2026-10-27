@@ -16,6 +16,7 @@ class SearchConfig:
     title_exclude: list[str] = field(default_factory=list)
     company_exclude: list[str] = field(default_factory=list)
     locations: list[str] = field(default_factory=list)
+    only_preferred_locations: bool = False  # False: `locations` only ranks; the dashboard can hide the rest
     max_age_days: int = 21
     needs_sponsorship: bool = False
     min_score: float = 25
@@ -37,6 +38,7 @@ class SearchConfig:
             title_exclude=[t.lower() for t in f.get("title_exclude", [])],
             company_exclude=[t.lower() for t in f.get("company_exclude", [])],
             locations=[t.lower() for t in f.get("locations", [])],
+            only_preferred_locations=f.get("only_preferred_locations", False),
             max_age_days=f.get("max_age_days", 21),
             needs_sponsorship=f.get("needs_sponsorship", False),
             min_score=f.get("min_score", 25),
@@ -69,7 +71,7 @@ def passes_filters(job: Job, cfg: SearchConfig, today: date | None = None) -> st
     company = f" {job.company.lower()} "
     if bad := next((c for c in cfg.company_exclude if _contains(company, c)), None):
         return f"company excluded ({bad.strip()})"
-    if cfg.locations and job.location:
+    if cfg.only_preferred_locations and cfg.locations and job.location:
         # Match on the location text only: "remote" jobs are often remote within another country.
         locs = " | ".join(job.location).lower()
         if not any(_contains(locs, l) for l in cfg.locations):

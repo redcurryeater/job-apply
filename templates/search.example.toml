@@ -8,9 +8,11 @@ title_include = ["software", "engineer", "developer", "machine learning", "ml ",
 title_exclude = ["senior", "sr.", "sr ", "staff", "principal", "lead", "manager", "director", "head of", "phd"]
 # Listings from companies whose name contains one of these are skipped.
 company_exclude = []
-# Keep jobs whose location contains one of these. Empty list = anywhere.
-# Order = preference: the dashboard lists a job's best-matching 3 locations first.
+# Preferred locations, most preferred first. The dashboard lists a job's best-matching 3 locations first,
+# and its "Preferred" toggle hides jobs in none of them.
 locations = ["remote", "united states", "usa", "us", "ca", "san francisco", "sf", "los angeles", "new york", "nyc", "seattle"]
+# true = also skip listings outside `locations` when searching (they never reach the tracker).
+only_preferred_locations = false
 # Skip listings older than this many days.
 max_age_days = 21
 # true = skip listings that say they don't sponsor visas / require citizenship.

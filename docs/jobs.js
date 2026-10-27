@@ -16,7 +16,7 @@ const state = {
   searchSha: null,
   settings: { locations: [], limits: {} },  // parsed from search.toml
   usage: new Map(),                          // companyKey -> companyUsage, rebuilt each render
-  view: { status: "active", kind: "", q: "", source: "", sort: "match_score", dir: -1 },
+  view: { status: "active", kind: "", where: "", q: "", source: "", sort: "match_score", dir: -1 },
   editing: null,                  // job id open in the dialog, or "" for a new job
 };
 
@@ -415,12 +415,17 @@ const annual = (s) => {
 // Board sources leave `level` empty, so the title decides too. "International"/"internal" don't match.
 const INTERN_RE = /\b(intern|internship|co-?op)s?\b/i;
 const roleKind = (j) => (INTERN_RE.test(`${j.level || ""} ${j.role || ""}`) ? "intern" : "fulltime");
-const kindJobs = () => state.data.jobs.filter((j) => !state.view.kind || roleKind(j) === state.view.kind);
+// Preferred = matches a search.toml location (no location listed = not preferred; no preferences set = all).
+const preferred = (j) => !state.settings.locations.length
+  || (j.location || []).some((loc) => state.settings.locations.some((p) => locationMatches(loc, p)));
+const isKind = (j, k) => !k || roleKind(j) === k;
+const isWhere = (j, w) => !w || preferred(j);
+const scopedJobs = () => state.data.jobs.filter((j) => isKind(j, state.view.kind) && isWhere(j, state.view.where));
 
 function visibleJobs() {
   const { status, q, source, sort, dir } = state.view;
   const needle = q.trim().toLowerCase();
-  const jobs = kindJobs().filter((j) => {
+  const jobs = scopedJobs().filter((j) => {
     if (status === "active" && DEAD.has(j.status)) return false;
     if (status !== "active" && status !== "all" && j.status !== status) return false;
     if (source && j.source !== source) return false;
@@ -443,19 +448,25 @@ function visibleJobs() {
   });
 }
 
-function renderKind() {
-  const n = (k) => state.data.jobs.filter((j) => !k || roleKind(j) === k).length;
-  document.querySelectorAll("#kind button").forEach((b) => {
-    const on = b.dataset.kind === state.view.kind;
+// Each toggle's counts follow the other toggle's current choice.
+function renderSeg(id, attr, current, count) {
+  document.querySelectorAll(`#${id} button`).forEach((b) => {
+    const on = b.dataset[attr] === current;
     b.classList.toggle("on", on);
     b.setAttribute("aria-pressed", String(on));
     b.dataset.label ||= b.textContent.trim();
-    b.replaceChildren(b.dataset.label, h("span", { class: "n", text: n(b.dataset.kind) }));
+    b.replaceChildren(b.dataset.label, h("span", { class: "n", text: count(b.dataset[attr]) }));
   });
 }
 
+function renderKind() {
+  const { kind, where } = state.view;
+  renderSeg("kind", "kind", kind, (k) => state.data.jobs.filter((j) => isKind(j, k) && isWhere(j, where)).length);
+  renderSeg("where", "where", where, (w) => state.data.jobs.filter((j) => isKind(j, kind) && isWhere(j, w)).length);
+}
+
 function renderCounts() {
-  const jobs = kindJobs();
+  const jobs = scopedJobs();
   const n = (s) => jobs.filter((j) => j.status === s).length;
   const items = [
     ["active", "Active", jobs.filter((j) => !DEAD.has(j.status)).length],
@@ -830,6 +841,11 @@ function init() {
   $("#source").addEventListener("change", (e) => { state.view.source = e.target.value; saveView(); renderRows(); });
   document.querySelectorAll("#kind button").forEach((b) => b.addEventListener("click", () => {
     state.view.kind = b.dataset.kind;
+    saveView();
+    render();
+  }));
+  document.querySelectorAll("#where button").forEach((b) => b.addEventListener("click", () => {
+    state.view.where = b.dataset.where;
     saveView();
     render();
   }));
