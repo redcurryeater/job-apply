@@ -226,6 +226,19 @@ def list_(
 
 
 @app.command()
+def unseen(
+    json_src: Annotated[str, typer.Option("--json", help="File or '-': a list of {company, role, url, location}.")],
+):
+    """Print the given listings that aren't in the tracker yet (any status), so they're worth opening."""
+    from .store import find_existing
+    store = Store()
+    store.pull()
+    jf = store.load()
+    raw = read_json_arg(json_src)
+    out([r for r in (raw if isinstance(raw, list) else [raw]) if not find_existing(jf, Job.model_validate(r))])
+
+
+@app.command()
 def show(job_id: str):
     """Print one job as JSON."""
     store = Store()

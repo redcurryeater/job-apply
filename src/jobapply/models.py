@@ -1,6 +1,7 @@
 """Job tracker schema. jobs.json is shared with the dashboard (docs/jobs.js), keep both in sync."""
 
 import hashlib
+import re
 from datetime import date, datetime, timezone
 from enum import StrEnum
 from typing import Literal
@@ -143,6 +144,25 @@ def job_id(url: str) -> str:
 def dedupe_key(company: str, role: str) -> str:
     norm = lambda s: " ".join("".join(c if c.isalnum() else " " for c in s.lower()).split())
     return f"{norm(company)}|{norm(role)}"
+
+
+PLACE_ALIASES = {"nyc": "new york", "new york city": "new york", "sf": "san francisco", "la": "los angeles"}
+ANYWHERE = {"", "united states", "usa", "us"}  # country-only says nothing about which posting it is
+
+
+def place(location: str) -> str:
+    """'San Francisco, CA', '…, California, United States' and 'San Francisco Bay Area' -> 'san francisco'."""
+    s = " ".join("".join(c if c.isalnum() or c == "," else " " for c in location.lower()).split())
+    if "remote" in s:
+        return "remote"
+    s = re.sub(r"^greater |( metropolitan| metro| bay)? area$", "", s.split(",")[0].strip())
+    return PLACE_ALIASES.get(s, s)
+
+
+def same_place(a: list[str], b: list[str]) -> bool:
+    """Locations don't contradict: they share a city (or both say remote), or one side doesn't say."""
+    pa, pb = {place(l) for l in a} - ANYWHERE, {place(l) for l in b} - ANYWHERE
+    return not pa or not pb or bool(pa & pb)
 
 
 ATS_HOSTS = {

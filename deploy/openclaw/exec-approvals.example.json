@@ -9,7 +9,7 @@
         {
           "id": "jobapply-cli",
           "pattern": "/opt/jobapply/.venv/bin/jobs",
-          "argPattern": "^(list|show|limits|add|update|fetch|resume-text|stage-resume|creds (get|new|list)|mail (scan|done|verify-link|verify-code))( |$)"
+          "argPattern": "^(list|show|unseen|limits|add|update|fetch|resume-text|stage-resume|creds (get|new|list)|mail (scan|done|verify-link|verify-code))( |$)"
         }
       ]
     }

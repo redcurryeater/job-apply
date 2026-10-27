@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from . import paths
-from .models import Job, JobsFile, dedupe_key, now
+from .models import Job, JobsFile, dedupe_key, now, same_place
 
 T = TypeVar("T")
 
@@ -78,15 +78,20 @@ class Store:
         raise RuntimeError("Could not push data/ after 3 attempts; check `git -C data status`.")
 
 
+def find_existing(jf: JobsFile, job: Job) -> Job | None:
+    """The stored job with the same url, else the same company+role in a compatible location."""
+    key = dedupe_key(job.company, job.role)
+    return next((j for j in jf.jobs if j.id == job.id), None) or next(
+        (j for j in jf.jobs if dedupe_key(j.company, j.role) == key and same_place(j.location, job.location)), None)
+
+
 def upsert(jf: JobsFile, job: Job) -> tuple[str, Job]:
-    """Add job, or merge it into an existing one with the same url or the same company+role.
+    """Add job, or merge it into an existing one (see find_existing).
 
     Returns ("added" | "updated" | "unchanged", stored_job). Never overwrites a user's
     status, notes or events; only fills in fields that are empty on the stored job.
     """
-    key = dedupe_key(job.company, job.role)
-    existing = next((j for j in jf.jobs if j.id == job.id), None) or next(
-        (j for j in jf.jobs if dedupe_key(j.company, j.role) == key and set(j.location) & set(job.location)), None)
+    existing = find_existing(jf, job)
     if existing is None:
         jf.jobs.append(job)
         return "added", job

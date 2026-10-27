@@ -8,7 +8,7 @@ import pytest
 from jobapply import creds
 from jobapply.gmail import _find_code
 from jobapply.match import SearchConfig, passes_filters, score
-from jobapply.models import Job, JobsFile, Status, detect_ats, job_id, normalize_url
+from jobapply.models import Job, JobsFile, Status, detect_ats, job_id, normalize_url, same_place
 from jobapply.sources import ats_boards, github_trackers
 from jobapply.store import Store, upsert
 
@@ -62,6 +62,46 @@ def test_upsert_dedupes_by_url_and_company_role_without_clobbering_user_fields()
     assert len(jf.jobs) == 1
     j = jf.jobs[0]
     assert j.status == Status.applied and j.notes == "mine" and j.closes_at == date(2030, 1, 1)
+
+
+def test_place_matching_across_location_formats():
+    assert same_place(["San Francisco, CA"], ["San Francisco, California, United States"])
+    assert same_place(["San Francisco Bay Area"], ["Seattle, WA", "San Francisco, CA"])
+    assert same_place(["New York City Metropolitan Area"], ["NYC"])
+    assert same_place(["Remote (US)"], ["United States (Remote)"])
+    assert same_place(["United States"], ["Austin, TX"]) and same_place([], ["Austin, TX"])
+    assert not same_place(["Austin, TX"], ["San Francisco, CA"])
+    assert not same_place(["Remote"], ["San Francisco, CA"])
+
+
+def test_upsert_merges_linkedin_copy_of_board_job_but_not_other_cities():
+    jf = JobsFile()
+    upsert(jf, Job(company="Acme", role="Software Engineer, New Grad", url="https://job-boards.greenhouse.io/acme/jobs/1",
+                   location=["San Francisco, California, United States"], source="greenhouse"))
+    li = Job(company="Acme", role="Software Engineer - New Grad", url="https://www.linkedin.com/jobs/view/4012345678",
+             location=["San Francisco Bay Area"], source="linkedin", match_score=80)
+    assert upsert(jf, li)[0] == "updated" and len(jf.jobs) == 1 and jf.jobs[0].match_score == 80
+    nyc = li.model_copy(update={"url": "https://www.linkedin.com/jobs/view/4012345679", "location": ["New York, NY"]})
+    assert upsert(jf, nyc)[0] == "added" and len(jf.jobs) == 2
+
+
+def test_unseen_prints_only_untracked_cards(tmp_path):
+    import os
+    data = tmp_path / "data"
+    data.mkdir()
+    Store(data).save(JobsFile(jobs=[
+        Job(company="Acme", role="SWE", url="https://www.linkedin.com/jobs/view/111", status=Status.closed),
+        Job(company="Beta", role="ML Engineer", url="https://jobs.lever.co/beta/1", location=["Seattle, WA"]),
+    ]))
+    cards = [{"company": "Acme", "role": "SWE", "url": "https://www.linkedin.com/jobs/view/swe-at-acme-111"},
+             {"company": "Beta", "role": "ML Engineer", "url": "https://www.linkedin.com/jobs/view/222",
+              "location": ["Greater Seattle Area"]},
+             {"company": "Gamma", "role": "SWE", "url": "https://www.linkedin.com/jobs/view/333", "location": ["Remote"]}]
+    (tmp_path / "cards.json").write_text(json.dumps(cards))
+    r = subprocess.run(["uv", "run", "jobs", "unseen", "--json", "cards.json"], capture_output=True, text=True,
+                       env={**os.environ, "JOBAPPLY_HOME": str(tmp_path)}, cwd=Path(__file__).parents[1])
+    assert r.returncode == 0, r.stderr
+    assert [c["company"] for c in json.loads(r.stdout)] == ["Gamma"]
 
 
 def test_extra_fields_round_trip():
