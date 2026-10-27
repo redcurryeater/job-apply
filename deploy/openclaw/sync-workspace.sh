@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run as your admin user (not claw) after `git -C /opt/jobapply pull`: rebuilds the read-only venv the agent
-# runs `jobs` from, and refreshes the agent's read-only copies of AGENTS.md and KNOWLEDGE.md.
+# runs `jobs` from, and refreshes the agent's read-only copies of AGENTS.md, KNOWLEDGE.md and the skills.
 set -euo pipefail
 
 CODE=/opt/jobapply
@@ -17,5 +17,15 @@ for f in AGENTS.md KNOWLEDGE.md; do
   sudo install -o root -g root -m 0444 "$CODE/$f" "$WS/$f"
   sudo chattr +i "$WS/$f"   # claw owns the workspace, so only the immutable flag stops it replacing these
 done
+
+# Skills go in the workspace too: the agent's read tool can't leave it (tools.fs.workspaceOnly).
+sudo chattr -R -i "$WS/skills" 2>/dev/null || true
+sudo rm -rf "$WS/skills"
+sudo install -d -o root -g root -m 0755 "$WS/skills"
+for s in apply check-email find-jobs; do
+  sudo install -d -o root -g root -m 0755 "$WS/skills/$s"
+  sudo install -o root -g root -m 0444 "$CODE/.claude/skills/$s/SKILL.md" "$WS/skills/$s/SKILL.md"
+done
+sudo chattr -R +i "$WS/skills"
 
 echo "Done. Now, as claw: systemctl --user restart openclaw-gateway.service"

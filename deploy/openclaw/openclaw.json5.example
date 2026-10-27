@@ -18,7 +18,9 @@
   },
 
   skills: {
-    load: { extraDirs: ["/opt/jobapply/.claude/skills"], watch: false },
+    // Loaded from <workspace>/skills, where sync-workspace.sh puts immutable copies; no extraDirs,
+    // because the agent can't read SKILL.md files outside the workspace.
+    load: { extraDirs: [], watch: false },
     allowBundled: [],                                     // no bundled skills; never install from ClawHub
   },
 
