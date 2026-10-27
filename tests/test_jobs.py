@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from jobapply import creds
+from jobapply.gmail import _find_code
 from jobapply.match import SearchConfig, passes_filters, score
 from jobapply.models import Job, JobsFile, Status, detect_ats, job_id, normalize_url
 from jobapply.sources import ats_boards, github_trackers
@@ -276,3 +277,12 @@ def test_cli_refuses_queue_at_cap(tmp_path):
     assert run("update", jf.jobs[0].id, "--status", "applying").returncode == 0
     r = run("limits", "--json")
     assert '"full": true' in r.stdout
+
+
+# --- gmail --------------------------------------------------------------------
+def test_find_code_after_keyword_or_before_is_your():
+    assert _find_code("Your verification code is: 482913. It expires in 10 minutes.") == "482913"
+    assert _find_code("Enter this one-time passcode\n\n  AB12CD  \nto continue") == "AB12CD"
+    assert _find_code("Subject: 739201 is your Acme sign-in code") == "739201"
+    assert _find_code("Your code expires in 10 minutes.") is None
+    assert _find_code("Thanks for applying to Acme.") is None

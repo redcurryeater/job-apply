@@ -349,5 +349,18 @@ def mail_verify_link(
     out(found)
 
 
+@mail_app.command("verify-code")
+def mail_verify_code(
+    domain: Annotated[str, typer.Argument(help="Portal URL or host you just signed up on.")],
+    minutes: int = 15,
+):
+    """Find the newest emailed verification code from a portal's sender (read-only)."""
+    from . import gmail
+    found = gmail.verify_code(domain, minutes)
+    if not found:
+        raise SystemExit(f"No verification code from {domain} in the last {minutes} minutes yet.")
+    out(found)
+
+
 if __name__ == "__main__":
     app()

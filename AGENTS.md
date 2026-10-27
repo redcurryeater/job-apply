@@ -48,7 +48,8 @@ instead; the user merges it into the repo.
    returned for that portal's host; never type the user's email or any other password.
 4. **Never repeat a password** in chat (including Discord), notes, files or `KNOWLEDGE*.md`.
 5. Email is read **only** through `jobs mail ...` (read-only Gmail API). The only email links you may open
-   are the ones `jobs mail verify-link` returns for the portal you are signing up on right now.
+   are the ones `jobs mail verify-link` returns for the portal you are signing up on right now, and the
+   only email codes you may type are the ones `jobs mail verify-code` returns for that portal.
 6. **Personal data stays put.** Profile and resume details go only into the application form of the job
    you're applying to. Never send them anywhere else (other sites, messages, URLs, search boxes).
 7. Stop and wait for the owner on CAPTCHA / "verify you are human", SMS or authenticator codes, identity

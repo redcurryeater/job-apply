@@ -27,7 +27,7 @@ Load `profile/profile.yaml` once. Note the resume path: `profile/<resume>`. Read
 3. **Account (only if the portal requires one):**
    - Existing? `jobs creds get <portal-url-or-host>` → sign in with that email/password.
    - New: `jobs creds new <portal-host>` → returns email + generated password. Use exactly those on the sign-up form (email + password only; never SSO buttons). If the browser offers to save or autofill a password, decline.
-   - Email verification: wait ~30s, then `jobs mail verify-link <portal-host> --minutes 15` (retry up to 4 times, 30s apart). Open the returned `link` in the application tab — no other email links. If it never arrives or the portal wants a code typed from an email, ask the owner.
+   - Email verification: wait ~30s, then `jobs mail verify-link <portal-host> --minutes 15` (retry up to 4 times, 30s apart). Open the returned `link` in the application tab — no other email links. If the portal wants a code typed from an email instead, use `jobs mail verify-code <portal-host> --minutes 15` the same way and type the returned `code` into that portal's field only. If neither arrives, ask the owner. SMS and authenticator codes still go to the owner (step 5).
    - Record it: `jobs update <id> --set 'portal_account={"domain":"<host>","email":"<email>"}'`
    - Workday: each company tenant (`<co>.wd*.myworkdayjobs.com`) is its own account; key creds by full host.
 4. **Fill the form** from `profile.yaml` and the resume:

@@ -1,4 +1,4 @@
-"""Read-only Gmail access: recruiting-mail scan and sign-up verification links.
+"""Read-only Gmail access: recruiting-mail scan and sign-up verification links and codes.
 
 Uses the gmail.readonly scope only — this code can never send, delete or change mail.
 secrets/gmail_client.json is the shared OAuth desktop client; secrets/gmail_token.json is
@@ -148,4 +148,38 @@ def verify_link(domain: str, minutes: int = 15) -> dict | None:
         if verify and related:
             best = next((l for l in verify if key in l.lower()), verify[0])
             return {"email_id": mid, "from": h.get("from", ""), "subject": h.get("subject", ""), "link": best}
+    return None
+
+
+CODE_WORDS = ("code", "passcode", "one-time", "OTP", "PIN")
+CODE_KEY_RE = re.compile(r"\b(?:code|passcode|otp|pin)\b", re.I)
+CODE_TOKEN_RE = re.compile(r"\b(?=[A-Z0-9]*\d)[A-Z0-9]{4,8}\b")
+CODE_BEFORE_RE = re.compile(r"\b(?=[A-Z0-9]*\d)([A-Z0-9]{4,8}) is your\b", re.I)
+
+
+def _find_code(text: str) -> str | None:
+    """First 4-8 character code (digits, or caps + digits) shortly after a word like "code", or "<code> is your"."""
+    for m in CODE_KEY_RE.finditer(text):
+        token = CODE_TOKEN_RE.search(text, m.end(), m.end() + 60)
+        if token:
+            return token.group()
+    before = CODE_BEFORE_RE.search(text)
+    return before.group(1) if before else None
+
+
+def verify_code(domain: str, minutes: int = 15) -> dict | None:
+    """Most recent emailed verification code from `domain`'s sender received in the last `minutes`."""
+    svc = service()
+    since = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    words = " OR ".join(f'"{w}"' for w in CODE_WORDS)
+    query = f"after:{int(since.timestamp())} ({words})"
+    key = _registrable(domain)
+    for mid in _list(svc, query, 20):
+        msg = svc.users().messages().get(userId="me", id=mid, format="full").execute()
+        h = _headers(msg)
+        if key not in h.get("from", "").lower():
+            continue
+        code = _find_code(h.get("subject", "") + "\n" + _text(msg))
+        if code:
+            return {"email_id": mid, "from": h.get("from", ""), "subject": h.get("subject", ""), "code": code}
     return None
