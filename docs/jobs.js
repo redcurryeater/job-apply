@@ -16,7 +16,7 @@ const state = {
   searchSha: null,
   settings: { locations: [], limits: {} },  // parsed from search.toml
   usage: new Map(),                          // companyKey -> companyUsage, rebuilt each render
-  view: { status: "active", q: "", source: "", sort: "match_score", dir: -1 },
+  view: { status: "active", kind: "", q: "", source: "", sort: "match_score", dir: -1 },
   editing: null,                  // job id open in the dialog, or "" for a new job
 };
 
@@ -412,10 +412,15 @@ const annual = (s) => {
 };
 
 // ——— rendering ———
+// Board sources leave `level` empty, so the title decides too. "International"/"internal" don't match.
+const INTERN_RE = /\b(intern|internship|co-?op)s?\b/i;
+const roleKind = (j) => (INTERN_RE.test(`${j.level || ""} ${j.role || ""}`) ? "intern" : "fulltime");
+const kindJobs = () => state.data.jobs.filter((j) => !state.view.kind || roleKind(j) === state.view.kind);
+
 function visibleJobs() {
   const { status, q, source, sort, dir } = state.view;
   const needle = q.trim().toLowerCase();
-  const jobs = state.data.jobs.filter((j) => {
+  const jobs = kindJobs().filter((j) => {
     if (status === "active" && DEAD.has(j.status)) return false;
     if (status !== "active" && status !== "all" && j.status !== status) return false;
     if (source && j.source !== source) return false;
@@ -438,8 +443,19 @@ function visibleJobs() {
   });
 }
 
+function renderKind() {
+  const n = (k) => state.data.jobs.filter((j) => !k || roleKind(j) === k).length;
+  document.querySelectorAll("#kind button").forEach((b) => {
+    const on = b.dataset.kind === state.view.kind;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+    b.dataset.label ||= b.textContent.trim();
+    b.replaceChildren(b.dataset.label, h("span", { class: "n", text: n(b.dataset.kind) }));
+  });
+}
+
 function renderCounts() {
-  const jobs = state.data.jobs;
+  const jobs = kindJobs();
   const n = (s) => jobs.filter((j) => j.status === s).length;
   const items = [
     ["active", "Active", jobs.filter((j) => !DEAD.has(j.status)).length],
@@ -583,6 +599,7 @@ function render() {
   if (!state.data) return;
   state.usage = new Map();
   $("#sheetno").textContent = `${state.repo} · ${state.data.jobs.length} jobs`;
+  renderKind();
   renderCounts();
   renderSources();
   renderRows();
@@ -811,6 +828,11 @@ function init() {
   $("#q").value = state.view.q;
   $("#q").addEventListener("input", (e) => { state.view.q = e.target.value; saveView(); renderRows(); });
   $("#source").addEventListener("change", (e) => { state.view.source = e.target.value; saveView(); renderRows(); });
+  document.querySelectorAll("#kind button").forEach((b) => b.addEventListener("click", () => {
+    state.view.kind = b.dataset.kind;
+    saveView();
+    render();
+  }));
   document.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
     const key = th.dataset.sort;
     state.view.dir = state.view.sort === key ? -state.view.dir : (["company", "role", "location", "closes_at", "status"].includes(key) ? 1 : -1);
